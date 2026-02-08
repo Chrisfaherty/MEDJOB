@@ -35,23 +35,23 @@ export default function LoginModal({ isOpen, onClose, onLogin }: LoginModalProps
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full animate-scale-in">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full animate-scale-in max-h-[95vh] overflow-y-auto">
         {/* Header */}
-        <div className="px-8 pt-8 pb-6 border-b border-slate-200">
+        <div className="px-4 sm:px-8 pt-6 sm:pt-8 pb-4 sm:pb-6 border-b border-slate-200">
           <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-gradient-to-r from-linkedin-blue to-linkedin-blue-light rounded-xl flex items-center justify-center">
-                <Briefcase className="w-6 h-6 text-white" />
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-linkedin-blue to-linkedin-blue-light rounded-xl flex items-center justify-center">
+                <Briefcase className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
               </div>
               <div>
-                <h2 className="text-2xl font-bold text-slate-900">Welcome to MedMatch-IE</h2>
-                <p className="text-sm text-slate-500">Your July 2026 transition tool</p>
+                <h2 className="text-lg sm:text-2xl font-bold text-slate-900">Welcome to MedMatch-IE</h2>
+                <p className="text-xs sm:text-sm text-slate-500">Your July 2026 transition tool</p>
               </div>
             </div>
             <button
               onClick={onClose}
-              className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+              className="p-2 hover:bg-slate-100 rounded-lg transition-colors flex-shrink-0"
               aria-label="Close"
             >
               <X className="w-5 h-5 text-slate-500" />
@@ -60,7 +60,7 @@ export default function LoginModal({ isOpen, onClose, onLogin }: LoginModalProps
         </div>
 
         {/* Content */}
-        <div className="px-8 py-6">
+        <div className="px-4 sm:px-8 py-4 sm:py-6">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">
@@ -126,7 +126,7 @@ export default function LoginModal({ isOpen, onClose, onLogin }: LoginModalProps
         </div>
 
         {/* Footer */}
-        <div className="px-8 py-4 bg-slate-50 rounded-b-2xl border-t border-slate-200">
+        <div className="px-4 sm:px-8 py-3 sm:py-4 bg-slate-50 rounded-b-2xl border-t border-slate-200">
           <p className="text-xs text-slate-600 text-center">
             Built for Irish medical interns transitioning to SHO/REG roles
           </p>

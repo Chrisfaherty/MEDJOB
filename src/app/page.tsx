@@ -206,21 +206,21 @@ export default function Dashboard() {
     <div className="min-h-screen bg-slate-50">
       {/* Header */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-10 shadow-sm">
-        <div className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
+        <div className="max-w-[1920px] mx-auto px-3 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-14 sm:h-16">
             {/* Logo */}
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-r from-linkedin-blue to-linkedin-blue-light rounded-lg flex items-center justify-center">
-                <Briefcase className="w-6 h-6 text-white" />
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-r from-linkedin-blue to-linkedin-blue-light rounded-lg flex items-center justify-center">
+                <Briefcase className="w-4 h-4 sm:w-6 sm:h-6 text-white" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-slate-900">MedMatch-IE</h1>
-                <p className="text-xs text-slate-500">July 2026 SHO/REG Rotation</p>
+                <h1 className="text-base sm:text-xl font-bold text-slate-900">MedMatch-IE</h1>
+                <p className="text-xs text-slate-500 hidden sm:block">July 2026 SHO/REG Rotation</p>
               </div>
             </div>
 
             {/* Actions */}
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-1.5 sm:gap-4">
               {/* User Info */}
               <div className="hidden sm:flex items-center gap-3 px-3 py-1.5 bg-slate-50 rounded-lg border border-slate-200">
                 <User className="w-4 h-4 text-slate-600" />
@@ -230,7 +230,7 @@ export default function Dashboard() {
               {/* Notifications */}
               <button
                 onClick={() => setShowNotifications(!showNotifications)}
-                className="relative p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                className="relative p-1.5 sm:p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
               >
                 <Bell className="w-5 h-5" />
                 {criticalAlerts.length > 0 && (
@@ -239,11 +239,11 @@ export default function Dashboard() {
               </button>
 
               {/* My Applications */}
-              <button className="px-4 py-2 bg-linkedin-blue text-white text-sm font-medium rounded-lg hover:bg-linkedin-blue-dark transition-colors flex items-center gap-2">
+              <button className="px-2 py-1.5 sm:px-4 sm:py-2 bg-linkedin-blue text-white text-xs sm:text-sm font-medium rounded-lg hover:bg-linkedin-blue-dark transition-colors flex items-center gap-1.5 sm:gap-2">
                 <Calendar className="w-4 h-4" />
                 <span className="hidden sm:inline">My Applications</span>
                 {appStats.total > 0 && (
-                  <span className="px-2 py-0.5 bg-white/20 rounded-full text-xs">
+                  <span className="px-1.5 py-0.5 sm:px-2 bg-white/20 rounded-full text-xs">
                     {appStats.total}
                   </span>
                 )}
@@ -252,10 +252,10 @@ export default function Dashboard() {
               {/* Logout */}
               <button
                 onClick={handleLogout}
-                className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                className="p-1.5 sm:p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
                 title="Logout"
               >
-                <LogOut className="w-5 h-5" />
+                <LogOut className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
             </div>
           </div>
@@ -263,9 +263,9 @@ export default function Dashboard() {
 
         {/* Notification Dropdown */}
         {showNotifications && deadlineAlerts.length > 0 && (
-          <div className="absolute top-16 right-4 w-96 bg-white rounded-lg shadow-2xl border border-slate-200 p-4 animate-slide-up">
+          <div className="absolute top-14 sm:top-16 right-2 sm:right-4 w-[calc(100vw-1rem)] sm:w-96 max-w-md bg-white rounded-lg shadow-2xl border border-slate-200 p-4 animate-slide-up">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="font-semibold text-slate-900">Upcoming Deadlines</h3>
+              <h3 className="font-semibold text-slate-900 text-sm sm:text-base">Upcoming Deadlines</h3>
               <button
                 onClick={() => setShowNotifications(false)}
                 className="p-1 hover:bg-slate-100 rounded"
@@ -297,10 +297,10 @@ export default function Dashboard() {
       </header>
 
       {/* Main Content */}
-      <div className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div className="max-w-[1920px] mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6">
           {/* Left Pane - Job List */}
-          <div className="lg:col-span-5 xl:col-span-4 space-y-4">
+          <div className={`lg:col-span-5 xl:col-span-4 space-y-4 ${selectedJob ? 'hidden lg:block' : ''}`}>
             {/* Stats Banner */}
             <div className="grid grid-cols-2 gap-3">
               <div className="bg-gradient-to-r from-linkedin-blue to-linkedin-blue-light rounded-lg p-4 text-white shadow-sm">
@@ -460,12 +460,23 @@ export default function Dashboard() {
           </div>
 
           {/* Right Pane - Detailed View */}
-          <div className="lg:col-span-7 xl:col-span-8">
+          <div className={`lg:col-span-7 xl:col-span-8 ${selectedJob ? '' : 'hidden lg:block'}`}>
             {selectedJob ? (
-              <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 space-y-6">
+              <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4 sm:p-6 space-y-4 sm:space-y-6">
+                {/* Mobile Back Button */}
+                <button
+                  onClick={() => setSelectedJob(null)}
+                  className="lg:hidden flex items-center gap-2 text-linkedin-blue hover:text-linkedin-blue-dark font-medium text-sm mb-2"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                  Back to Jobs
+                </button>
+
                 {/* Header */}
                 <div>
-                  <h2 className="text-3xl font-bold text-slate-900 mb-2">
+                  <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-slate-900 mb-2">
                     {selectedJob.title}
                   </h2>
                   <div className="flex items-center gap-2 flex-wrap">
