@@ -10,6 +10,39 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  /* LinkedIn-inspired color palette */
+  --color-linkedin-blue: #0A66C2;
+  --color-linkedin-blue-dark: #004182;
+  --color-linkedin-blue-light: #378FE9;
+
+  /* Slate colors */
+  --color-slate-50: #F8FAFC;
+  --color-slate-100: #F1F5F9;
+  --color-slate-200: #E2E8F0;
+  --color-slate-300: #CBD5E1;
+  --color-slate-400: #94A3B8;
+  --color-slate-500: #64748B;
+  --color-slate-600: #475569;
+  --color-slate-700: #334155;
+  --color-slate-800: #1E293B;
+  --color-slate-900: #0F172A;
+  --color-slate-950: #020617;
+
+  /* Status colors */
+  --color-status-applied: #10B981;
+  --color-status-interview: #F59E0B;
+  --color-status-shortlisted: #8B5CF6;
+  --color-status-rejected: #EF4444;
+
+  /* Scheme colors */
+  --color-scheme-training: #3B82F6;
+  --color-scheme-non-training: #6B7280;
+
+  /* Deadline urgency */
+  --color-deadline-critical: #DC2626;
+  --color-deadline-warning: #F59E0B;
+  --color-deadline-normal: #10B981;
 }
 
 @media (prefers-color-scheme: dark) {

@@ -303,12 +303,12 @@ export default function Dashboard() {
           <div className={`lg:col-span-5 xl:col-span-4 space-y-4 ${selectedJob ? 'hidden lg:block' : ''}`}>
             {/* Stats Banner */}
             <div className="grid grid-cols-2 gap-3">
-              <div className="bg-gradient-to-r from-linkedin-blue to-linkedin-blue-light rounded-lg p-4 text-white shadow-sm">
-                <p className="text-xs opacity-90">Active Jobs</p>
+              <div className="bg-linkedin-blue rounded-lg p-4 text-white shadow-sm">
+                <p className="text-xs font-medium mb-1">Active Jobs</p>
                 <p className="text-3xl font-bold">{filteredJobs.length}</p>
               </div>
-              <div className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-lg p-4 text-white shadow-sm">
-                <p className="text-xs opacity-90">Applied</p>
+              <div className="bg-green-600 rounded-lg p-4 text-white shadow-sm">
+                <p className="text-xs font-medium mb-1">Applied</p>
                 <p className="text-3xl font-bold">{appStats.applied}</p>
               </div>
             </div>
