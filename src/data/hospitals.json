@@ -1,0 +1,428 @@
+{
+  "hospitalGroups": {
+    "IEHG": "Ireland East Hospital Group",
+    "DMHG": "Dublin Midlands Hospital Group",
+    "RCSI": "RCSI Hospital Group",
+    "SAOLTA": "Saolta University Health Care Group",
+    "SSWHG": "South/South West Hospital Group",
+    "MWHG": "Mid-West Hospital Group",
+    "UL": "UL Hospitals Group"
+  },
+  "internTrainingNetworks": {
+    "DUBLIN_NORTH": "Dublin North City & County Intern Training Network",
+    "DUBLIN_SOUTH": "Dublin South Intern Training Network",
+    "CORK": "Cork Intern Training Network",
+    "GALWAY": "Galway Intern Training Network",
+    "LIMERICK": "Mid-West Intern Training Network",
+    "WATERFORD": "South East Intern Training Network",
+    "SLIGO": "North West Intern Training Network",
+    "KILKENNY": "Kilkenny/Wexford Intern Training Network"
+  },
+  "hospitals": [
+    {
+      "id": "mater",
+      "name": "Mater Misericordiae University Hospital",
+      "shortName": "Mater",
+      "county": "Dublin",
+      "hospitalGroup": "IEHG",
+      "internNetwork": "DUBLIN_NORTH",
+      "location": {
+        "city": "Dublin 7",
+        "lat": 53.3567,
+        "lng": -6.2621
+      },
+      "isTeachingHospital": true,
+      "university": "UCD"
+    },
+    {
+      "id": "beaumont",
+      "name": "Beaumont Hospital",
+      "shortName": "Beaumont",
+      "county": "Dublin",
+      "hospitalGroup": "RCSI",
+      "internNetwork": "DUBLIN_NORTH",
+      "location": {
+        "city": "Dublin 9",
+        "lat": 53.3896,
+        "lng": -6.2239
+      },
+      "isTeachingHospital": true,
+      "university": "RCSI"
+    },
+    {
+      "id": "connolly",
+      "name": "Connolly Hospital Blanchardstown",
+      "shortName": "Connolly",
+      "county": "Dublin",
+      "hospitalGroup": "RCSI",
+      "internNetwork": "DUBLIN_NORTH",
+      "location": {
+        "city": "Dublin 15",
+        "lat": 53.3931,
+        "lng": -6.3786
+      },
+      "isTeachingHospital": false,
+      "university": null
+    },
+    {
+      "id": "stjames",
+      "name": "St. James's Hospital",
+      "shortName": "St. James's",
+      "county": "Dublin",
+      "hospitalGroup": "DMHG",
+      "internNetwork": "DUBLIN_SOUTH",
+      "location": {
+        "city": "Dublin 8",
+        "lat": 53.3411,
+        "lng": -6.2904
+      },
+      "isTeachingHospital": true,
+      "university": "TCD"
+    },
+    {
+      "id": "stvincents",
+      "name": "St. Vincent's University Hospital",
+      "shortName": "SVUH",
+      "county": "Dublin",
+      "hospitalGroup": "IEHG",
+      "internNetwork": "DUBLIN_SOUTH",
+      "location": {
+        "city": "Dublin 4",
+        "lat": 53.3121,
+        "lng": -6.2172
+      },
+      "isTeachingHospital": true,
+      "university": "UCD"
+    },
+    {
+      "id": "tallaght",
+      "name": "Tallaght University Hospital",
+      "shortName": "TUH",
+      "county": "Dublin",
+      "hospitalGroup": "DMHG",
+      "internNetwork": "DUBLIN_SOUTH",
+      "location": {
+        "city": "Dublin 24",
+        "lat": 53.2864,
+        "lng": -6.3700
+      },
+      "isTeachingHospital": true,
+      "university": "TCD"
+    },
+    {
+      "id": "stlukeskilkenny",
+      "name": "St. Luke's General Hospital Kilkenny",
+      "shortName": "St. Luke's Kilkenny",
+      "county": "Kilkenny",
+      "hospitalGroup": "IEHG",
+      "internNetwork": "KILKENNY",
+      "location": {
+        "city": "Kilkenny",
+        "lat": 52.6541,
+        "lng": -7.2448
+      },
+      "isTeachingHospital": false,
+      "university": null
+    },
+    {
+      "id": "wexford",
+      "name": "Wexford General Hospital",
+      "shortName": "Wexford",
+      "county": "Wexford",
+      "hospitalGroup": "IEHG",
+      "internNetwork": "KILKENNY",
+      "location": {
+        "city": "Wexford",
+        "lat": 52.3369,
+        "lng": -6.4633
+      },
+      "isTeachingHospital": false,
+      "university": null
+    },
+    {
+      "id": "waterford",
+      "name": "University Hospital Waterford",
+      "shortName": "UHW",
+      "county": "Waterford",
+      "hospitalGroup": "SSWHG",
+      "internNetwork": "WATERFORD",
+      "location": {
+        "city": "Waterford",
+        "lat": 52.2413,
+        "lng": -7.1411
+      },
+      "isTeachingHospital": true,
+      "university": "RCSI"
+    },
+    {
+      "id": "cuh",
+      "name": "Cork University Hospital",
+      "shortName": "CUH",
+      "county": "Cork",
+      "hospitalGroup": "SSWHG",
+      "internNetwork": "CORK",
+      "location": {
+        "city": "Cork",
+        "lat": 51.8866,
+        "lng": -8.5167
+      },
+      "isTeachingHospital": true,
+      "university": "UCC"
+    },
+    {
+      "id": "mercy",
+      "name": "Mercy University Hospital",
+      "shortName": "Mercy Cork",
+      "county": "Cork",
+      "hospitalGroup": "SSWHG",
+      "internNetwork": "CORK",
+      "location": {
+        "city": "Cork",
+        "lat": 51.9012,
+        "lng": -8.4705
+      },
+      "isTeachingHospital": true,
+      "university": "UCC"
+    },
+    {
+      "id": "uhg",
+      "name": "University Hospital Galway",
+      "shortName": "UHG",
+      "county": "Galway",
+      "hospitalGroup": "SAOLTA",
+      "internNetwork": "GALWAY",
+      "location": {
+        "city": "Galway",
+        "lat": 53.2782,
+        "lng": -9.0523
+      },
+      "isTeachingHospital": true,
+      "university": "NUIG"
+    },
+    {
+      "id": "uhk",
+      "name": "University Hospital Kerry",
+      "shortName": "UHK",
+      "county": "Kerry",
+      "hospitalGroup": "SSWHG",
+      "internNetwork": "CORK",
+      "location": {
+        "city": "Tralee",
+        "lat": 52.2683,
+        "lng": -9.7076
+      },
+      "isTeachingHospital": false,
+      "university": null
+    },
+    {
+      "id": "uhl",
+      "name": "University Hospital Limerick",
+      "shortName": "UHL",
+      "county": "Limerick",
+      "hospitalGroup": "UL",
+      "internNetwork": "LIMERICK",
+      "location": {
+        "city": "Limerick",
+        "lat": 52.6555,
+        "lng": -8.6438
+      },
+      "isTeachingHospital": true,
+      "university": "UL"
+    },
+    {
+      "id": "sligo",
+      "name": "Sligo University Hospital",
+      "shortName": "SUH",
+      "county": "Sligo",
+      "hospitalGroup": "SAOLTA",
+      "internNetwork": "SLIGO",
+      "location": {
+        "city": "Sligo",
+        "lat": 54.2731,
+        "lng": -8.4813
+      },
+      "isTeachingHospital": false,
+      "university": null
+    },
+    {
+      "id": "letterkenny",
+      "name": "Letterkenny University Hospital",
+      "shortName": "LUH",
+      "county": "Donegal",
+      "hospitalGroup": "SAOLTA",
+      "internNetwork": "SLIGO",
+      "location": {
+        "city": "Letterkenny",
+        "lat": 54.9500,
+        "lng": -7.7333
+      },
+      "isTeachingHospital": false,
+      "university": null
+    },
+    {
+      "id": "drogheda",
+      "name": "Our Lady of Lourdes Hospital Drogheda",
+      "shortName": "Lourdes Drogheda",
+      "county": "Louth",
+      "hospitalGroup": "RCSI",
+      "internNetwork": "DUBLIN_NORTH",
+      "location": {
+        "city": "Drogheda",
+        "lat": 53.7158,
+        "lng": -6.3467
+      },
+      "isTeachingHospital": false,
+      "university": null
+    },
+    {
+      "id": "mullingar",
+      "name": "Midland Regional Hospital Mullingar",
+      "shortName": "Mullingar",
+      "county": "Westmeath",
+      "hospitalGroup": "DMHG",
+      "internNetwork": "DUBLIN_NORTH",
+      "location": {
+        "city": "Mullingar",
+        "lat": 53.5266,
+        "lng": -7.3389
+      },
+      "isTeachingHospital": false,
+      "university": null
+    },
+    {
+      "id": "portlaoise",
+      "name": "Midland Regional Hospital Portlaoise",
+      "shortName": "Portlaoise",
+      "county": "Laois",
+      "hospitalGroup": "DMHG",
+      "internNetwork": "DUBLIN_SOUTH",
+      "location": {
+        "city": "Portlaoise",
+        "lat": 53.0338,
+        "lng": -7.2988
+      },
+      "isTeachingHospital": false,
+      "university": null
+    },
+    {
+      "id": "naas",
+      "name": "Naas General Hospital",
+      "shortName": "Naas",
+      "county": "Kildare",
+      "hospitalGroup": "DMHG",
+      "internNetwork": "DUBLIN_SOUTH",
+      "location": {
+        "city": "Naas",
+        "lat": 53.2190,
+        "lng": -6.6635
+      },
+      "isTeachingHospital": false,
+      "university": null
+    },
+    {
+      "id": "cavan",
+      "name": "Cavan General Hospital",
+      "shortName": "Cavan",
+      "county": "Cavan",
+      "hospitalGroup": "RCSI",
+      "internNetwork": "DUBLIN_NORTH",
+      "location": {
+        "city": "Cavan",
+        "lat": 53.9908,
+        "lng": -7.3608
+      },
+      "isTeachingHospital": false,
+      "university": null
+    },
+    {
+      "id": "ennis",
+      "name": "University Hospital Limerick - Ennis",
+      "shortName": "Ennis",
+      "county": "Clare",
+      "hospitalGroup": "UL",
+      "internNetwork": "LIMERICK",
+      "location": {
+        "city": "Ennis",
+        "lat": 52.8456,
+        "lng": -8.9866
+      },
+      "isTeachingHospital": false,
+      "university": null
+    },
+    {
+      "id": "nenagh",
+      "name": "Nenagh Hospital",
+      "shortName": "Nenagh",
+      "county": "Tipperary",
+      "hospitalGroup": "UL",
+      "internNetwork": "LIMERICK",
+      "location": {
+        "city": "Nenagh",
+        "lat": 52.8617,
+        "lng": -8.1975
+      },
+      "isTeachingHospital": false,
+      "university": null
+    },
+    {
+      "id": "mayo",
+      "name": "Mayo University Hospital",
+      "shortName": "MUH",
+      "county": "Mayo",
+      "hospitalGroup": "SAOLTA",
+      "internNetwork": "GALWAY",
+      "location": {
+        "city": "Castlebar",
+        "lat": 53.8561,
+        "lng": -9.2894
+      },
+      "isTeachingHospital": false,
+      "university": null
+    },
+    {
+      "id": "portiuncula",
+      "name": "Portiuncula University Hospital",
+      "shortName": "Portiuncula",
+      "county": "Galway",
+      "hospitalGroup": "SAOLTA",
+      "internNetwork": "GALWAY",
+      "location": {
+        "city": "Ballinasloe",
+        "lat": 53.3270,
+        "lng": -8.2251
+      },
+      "isTeachingHospital": false,
+      "university": null
+    },
+    {
+      "id": "roscommon",
+      "name": "Roscommon University Hospital",
+      "shortName": "Roscommon",
+      "county": "Roscommon",
+      "hospitalGroup": "SAOLTA",
+      "internNetwork": "GALWAY",
+      "location": {
+        "city": "Roscommon",
+        "lat": 53.6335,
+        "lng": -8.1869
+      },
+      "isTeachingHospital": false,
+      "university": null
+    },
+    {
+      "id": "bantry",
+      "name": "Bantry General Hospital",
+      "shortName": "Bantry",
+      "county": "Cork",
+      "hospitalGroup": "SSWHG",
+      "internNetwork": "CORK",
+      "location": {
+        "city": "Bantry",
+        "lat": 51.6817,
+        "lng": -9.4531
+      },
+      "isTeachingHospital": false,
+      "university": null
+    }
+  ]
+}
