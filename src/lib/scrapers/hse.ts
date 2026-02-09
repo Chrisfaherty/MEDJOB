@@ -80,30 +80,89 @@ export class HSEScraper extends BaseScraper {
       url: `https://about.hse.ie/jobs/job-search/${m[1]}/`
     }));
 
-    // Extract titles (simplified - in production use proper HTML parsing)
-    const titlePattern = /<h3[^>]*>([^<]+)<\/h3>/g;
-    const titles = Array.from(html.matchAll(titlePattern)).map(m => m[1].trim());
+    // Remove duplicate URLs (same job may appear multiple times in HTML)
+    const uniqueUrls = Array.from(new Map(urls.map(u => [u.url, u])).values());
 
-    // Extract counties
-    const countyPattern = /<span[^>]*>County:<\/span>\s*<span[^>]*>([^<]+)<\/span>/g;
-    const counties = Array.from(html.matchAll(countyPattern)).map(m => m[1].trim());
+    // Extract titles - more flexible pattern to handle nested elements
+    // Use [\s\S] instead of . with /s flag for ES2015 compatibility
+    const titlePattern = /<h3[^>]*>([\s\S]*?)<\/h3>/g;
+    const titleMatches = Array.from(html.matchAll(titlePattern));
+    const titles = titleMatches.map(m => {
+      // Strip HTML tags and decode entities
+      const cleaned = m[1].replace(/<[^>]+>/g, '').trim();
+      return this.cleanText(cleaned);
+    });
+
+    // Extract counties - multiple patterns to handle variations
+    const countyPattern1 = /<span[^>]*>County:<\/span>\s*<span[^>]*>([^<]+)<\/span>/gi;
+    const countyPattern2 = /County:\s*([A-Z][a-z]+)/g;
+    const counties1 = Array.from(html.matchAll(countyPattern1)).map(m => m[1].trim());
+    const counties2 = Array.from(html.matchAll(countyPattern2)).map(m => m[1].trim());
+    const counties = counties1.length > 0 ? counties1 : counties2;
 
     // Extract posted dates
     const datePattern = /(\d{1,2}\s+(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4})/g;
     const dates = Array.from(html.matchAll(datePattern)).map(m => m[1]);
 
-    // Combine the extracted data
-    const count = Math.min(urls.length, titles.length);
-    for (let i = 0; i < count; i++) {
-      listings.push({
-        title: titles[i] || '',
-        url: urls[i]?.url || '',
-        county: counties[i] || 'Dublin', // Default to Dublin if not found
-        posted: dates[i] || new Date().toISOString(),
-      });
+    // Combine the extracted data with validation
+    // Use unique URLs as the canonical list
+    for (let i = 0; i < uniqueUrls.length; i++) {
+      const title = titles[i]?.trim();
+      const url = uniqueUrls[i]?.url;
+
+      // Only add if we have at minimum a title and URL
+      if (title && url && title.length > 5) {
+        listings.push({
+          title,
+          url,
+          county: counties[i]?.trim() || this.inferCountyFromTitle(title),
+          posted: dates[i] || new Date().toISOString(),
+        });
+      }
     }
 
+    console.log(`Extracted ${listings.length} job listings from HTML`);
     return listings;
+  }
+
+  /**
+   * Try to infer county from job title if not explicitly stated
+   */
+  private inferCountyFromTitle(title: string): string {
+    const titleLower = title.toLowerCase();
+    const countyMap: Record<string, string> = {
+      'dublin': 'Dublin',
+      'cork': 'Cork',
+      'galway': 'Galway',
+      'limerick': 'Limerick',
+      'waterford': 'Waterford',
+      'kerry': 'Kerry',
+      'sligo': 'Sligo',
+      'donegal': 'Donegal',
+      'mayo': 'Mayo',
+      'meath': 'Meath',
+      'kilkenny': 'Kilkenny',
+      'tipperary': 'Tipperary',
+    };
+
+    for (const [keyword, county] of Object.entries(countyMap)) {
+      if (titleLower.includes(keyword)) {
+        return county;
+      }
+    }
+
+    // Default to Dublin for major teaching hospitals if county can't be determined
+    if (
+      titleLower.includes('mater') ||
+      titleLower.includes('beaumont') ||
+      titleLower.includes('james') ||
+      titleLower.includes('vincent') ||
+      titleLower.includes('tallaght')
+    ) {
+      return 'Dublin';
+    }
+
+    return 'Dublin'; // Final fallback
   }
 
   private async parseJobListing(

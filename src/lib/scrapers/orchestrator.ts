@@ -139,20 +139,94 @@ export class ScraperOrchestrator {
    * Save to browser localStorage
    */
   private saveToLocalStorage(jobs: ScrapedJob[]): number {
-    const STORAGE_KEY = 'medjob_scraped_jobs';
+    const STORAGE_KEY = 'medjob_jobs'; // FIXED: Use the same key as the main app
 
     // Get existing jobs
     const existingData = localStorage.getItem(STORAGE_KEY);
-    const existingJobs: ScrapedJob[] = existingData ? JSON.parse(existingData) : [];
+    const existingJobs: Job[] = existingData ? JSON.parse(existingData) : [];
 
-    // Merge new jobs with existing (deduplicate again)
-    const allJobs = [...existingJobs, ...jobs];
-    const uniqueJobs = this.deduplicateJobs(allJobs);
+    // Convert ScrapedJob to Job format
+    const convertedJobs: Job[] = jobs.map((scrapedJob, index) => ({
+      id: `scraped_${Date.now()}_${index}`,
+      title: scrapedJob.title,
+      grade: scrapedJob.grade,
+      specialty: scrapedJob.specialty,
+      scheme_type: scrapedJob.scheme_type,
+      hospital_id: scrapedJob.hospital_name.toLowerCase().replace(/[^a-z0-9]/g, '_'),
+      hospital_name: scrapedJob.hospital_name,
+      hospital_group: scrapedJob.hospital_group,
+      county: scrapedJob.county,
+      start_date: this.calculateStartDate(scrapedJob.application_deadline),
+      duration_months: 6, // Default assumption
+      rotational_detail: scrapedJob.rotational_detail,
+      contract_type: scrapedJob.scheme_type.includes('TRAINING') ? 'Training' : 'Specified Purpose',
+      application_deadline: scrapedJob.application_deadline,
+      application_url: scrapedJob.application_url,
+      job_spec_pdf_url: scrapedJob.job_spec_pdf_url,
+      informal_enquiries_email: scrapedJob.informal_enquiries_email,
+      informal_enquiries_name: scrapedJob.informal_enquiries_name,
+      informal_contact_email: scrapedJob.informal_contact_email,
+      medical_manpower_email: scrapedJob.medical_manpower_email,
+      clinical_lead: scrapedJob.clinical_lead,
+      historical_centile_tier: scrapedJob.historical_centile_tier,
+      source: this.mapSourcePlatform(scrapedJob.source_platform),
+      external_id: `${scrapedJob.source_platform}_${scrapedJob.title.substring(0, 20)}`,
+      is_active: true,
+      created_at: scrapedJob.scraped_at,
+      updated_at: scrapedJob.scraped_at,
+      last_scraped_at: scrapedJob.scraped_at,
+    }));
+
+    // Merge new jobs with existing (deduplicate by title + hospital + deadline)
+    const allJobs = [...existingJobs, ...convertedJobs];
+    const seen = new Set<string>();
+    const uniqueJobs: Job[] = [];
+
+    for (const job of allJobs) {
+      const key = `${job.title.toLowerCase()}|${job.hospital_name.toLowerCase()}|${job.application_deadline}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        uniqueJobs.push(job);
+      }
+    }
 
     // Save back to localStorage
     localStorage.setItem(STORAGE_KEY, JSON.stringify(uniqueJobs));
 
-    return jobs.length;
+    return convertedJobs.length;
+  }
+
+  /**
+   * Calculate probable start date based on deadline
+   * Most Irish NCHD roles start in July or January
+   */
+  private calculateStartDate(deadline: string): string {
+    const deadlineDate = new Date(deadline);
+    const year = deadlineDate.getFullYear();
+    const month = deadlineDate.getMonth();
+
+    // If deadline is before June, assume July start
+    // If deadline is after June, assume January next year start
+    if (month < 6) {
+      return `${year}-07-13`; // July rotation
+    } else {
+      return `${year + 1}-01-13`; // January rotation
+    }
+  }
+
+  /**
+   * Map source platform to Job source type
+   */
+  private mapSourcePlatform(
+    platform: ScrapedJob['source_platform']
+  ): Job['source'] {
+    if (platform === 'HSE_NRS' || platform === 'ABOUT_HSE') {
+      return 'NRS';
+    }
+    if (platform === 'REZOOMO') {
+      return 'REZOOMO';
+    }
+    return 'DIRECT_HOSPITAL';
   }
 
   /**
