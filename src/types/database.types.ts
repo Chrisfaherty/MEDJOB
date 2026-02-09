@@ -33,6 +33,10 @@ export type SchemeType =
 
 export type HospitalGroup = 'IEHG' | 'DMHG' | 'RCSI' | 'SAOLTA' | 'SSWHG' | 'MWHG' | 'UL';
 
+export type HospitalTier = 'TOP_TIER' | 'MID_TIER' | 'SAFETY_NET';
+
+export type MatchRating = 'LIKELY_MATCH' | 'COMPETITIVE' | 'REACH';
+
 export type ApplicationStatus =
   | 'NOT_APPLIED'
   | 'APPLIED'
@@ -71,6 +75,11 @@ export interface Job {
   informal_enquiries_email?: string;
   informal_enquiries_name?: string;
   clinical_lead?: string;
+  medical_manpower_email?: string;
+  informal_contact_email?: string;
+
+  // Hospital Tier & Match Probability
+  historical_centile_tier?: HospitalTier;
 
   // Source
   source: 'NRS' | 'REZOOMO' | 'DIRECT_HOSPITAL';
@@ -123,6 +132,7 @@ export interface ScrapingLog {
 export interface JobWithStatus extends Job {
   user_status?: ApplicationStatus;
   hours_until_deadline?: number;
+  match_rating?: MatchRating;
 }
 
 // Specialty display names
@@ -174,4 +184,33 @@ export const HOSPITAL_GROUP_LABELS: Record<HospitalGroup, string> = {
   SSWHG: 'South/South West',
   MWHG: 'Mid-West',
   UL: 'UL Hospitals',
+};
+
+// Hospital Tier display names
+export const HOSPITAL_TIER_LABELS: Record<HospitalTier, string> = {
+  TOP_TIER: 'Top Tier',
+  MID_TIER: 'Mid Tier',
+  SAFETY_NET: 'Safety Net',
+};
+
+// Match Rating display names and colors
+export const MATCH_RATING_CONFIG: Record<
+  MatchRating,
+  { label: string; color: string; description: string }
+> = {
+  LIKELY_MATCH: {
+    label: 'Likely Match',
+    color: 'green',
+    description: 'Your centile is above typical cutoff',
+  },
+  COMPETITIVE: {
+    label: 'Competitive',
+    color: 'amber',
+    description: 'Your centile is within competitive range',
+  },
+  REACH: {
+    label: 'Reach',
+    color: 'red',
+    description: 'Your centile is below typical cutoff',
+  },
 };

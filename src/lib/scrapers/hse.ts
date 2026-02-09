@@ -5,6 +5,7 @@
 
 import { BaseScraper, type ScrapedJob, type ScraperResult, delay } from './base';
 import hospitalsData from '@/data/hospitals.json';
+import { getHospitalTier } from '@/lib/matchProbability';
 
 const hospitals = hospitalsData.hospitals;
 
@@ -132,6 +133,9 @@ export class HSEScraper extends BaseScraper {
     const deadline = new Date(postedDate);
     deadline.setDate(deadline.getDate() + 21); // 3 weeks from posting
 
+    // Get hospital tier for match probability
+    const hospitalTier = getHospitalTier(hospital?.name || 'HSE Facility');
+
     return {
       title: jobData.title,
       grade: this.parseGrade(jobData.title),
@@ -143,6 +147,7 @@ export class HSEScraper extends BaseScraper {
       application_deadline: deadline.toISOString(),
       application_url: jobData.url,
       job_spec_pdf_url: undefined, // Would need to visit detail page to get this
+      historical_centile_tier: hospitalTier,
       source_url: sourceUrl,
       source_platform: 'ABOUT_HSE',
       scraped_at: new Date().toISOString(),

@@ -11,18 +11,26 @@ import {
   ExternalLink,
   FileText,
   Calendar,
+  TrendingUp,
+  Send,
 } from 'lucide-react';
-import type { Job, ApplicationStatus } from '@/types/database.types';
+import type { Job, ApplicationStatus, MatchRating } from '@/types/database.types';
 import {
   SPECIALTY_LABELS,
   GRADE_LABELS,
   SCHEME_TYPE_LABELS,
   HOSPITAL_GROUP_LABELS,
+  MATCH_RATING_CONFIG,
 } from '@/types/database.types';
+import { calculateMatchRating, getHospitalTier } from '@/lib/matchProbability';
+import { generateEmailFromJob, hasContactInfo } from '@/lib/emailTemplates';
 
 interface JobCardProps {
   job: Job;
   userStatus?: ApplicationStatus;
+  userCentile?: number;
+  userName?: string;
+  userEmail?: string;
   onStatusChange?: (jobId: string, status: ApplicationStatus) => void;
   onCardClick?: (job: Job) => void;
   isSelected?: boolean;
@@ -31,11 +39,19 @@ interface JobCardProps {
 export default function JobCard({
   job,
   userStatus,
+  userCentile,
+  userName,
+  userEmail,
   onStatusChange,
   onCardClick,
   isSelected = false,
 }: JobCardProps) {
   const [isHovered, setIsHovered] = useState(false);
+
+  // Calculate match rating if user centile is provided
+  const hospitalTier = job.historical_centile_tier || getHospitalTier(job.hospital_name);
+  const matchRating: MatchRating | undefined =
+    userCentile && hospitalTier ? calculateMatchRating(userCentile, hospitalTier) : undefined;
 
   // Calculate deadline urgency
   const hoursUntilDeadline = differenceInHours(
@@ -127,6 +143,24 @@ export default function JobCard({
               <GraduationCap className="w-3 h-3" />
               {SCHEME_TYPE_LABELS[job.scheme_type]}
             </span>
+            {matchRating && (
+              <span
+                className={`
+                  inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium
+                  ${
+                    matchRating === 'LIKELY_MATCH'
+                      ? 'bg-green-100 text-green-700'
+                      : matchRating === 'COMPETITIVE'
+                      ? 'bg-amber-100 text-amber-700'
+                      : 'bg-red-100 text-red-700'
+                  }
+                `}
+                title={MATCH_RATING_CONFIG[matchRating].description}
+              >
+                <TrendingUp className="w-3 h-3" />
+                {MATCH_RATING_CONFIG[matchRating].label}
+              </span>
+            )}
           </div>
         </div>
 
@@ -238,6 +272,19 @@ export default function JobCard({
               title="View Job Specification"
             >
               <FileText className="w-4 h-4" />
+            </a>
+          )}
+          {hasContactInfo(job) && (
+            <a
+              href={
+                generateEmailFromJob(job, userName, userEmail)?.mailto ||
+                `mailto:${job.informal_enquiries_email || job.informal_contact_email || job.medical_manpower_email}`
+              }
+              className="p-2 text-slate-600 hover:text-green-600 hover:bg-white rounded-md transition-colors"
+              onClick={(e) => e.stopPropagation()}
+              title="Email Consultant"
+            >
+              <Send className="w-4 h-4" />
             </a>
           )}
           {job.application_url && (

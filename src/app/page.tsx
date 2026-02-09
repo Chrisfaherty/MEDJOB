@@ -64,6 +64,9 @@ export default function Dashboard() {
     schemeTypes: [],
   });
 
+  // User centile for match probability
+  const [userCentile, setUserCentile] = useState<number | undefined>();
+
   // Initialize
   useEffect(() => {
     initializeLocalStorage();
@@ -327,6 +330,28 @@ export default function Dashboard() {
                 />
               </div>
 
+              {/* Centile Input for Match Probability */}
+              <div className="relative">
+                <TrendingUp className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  placeholder="Enter your HSE centile (optional)"
+                  value={userCentile || ''}
+                  onChange={(e) => {
+                    const value = e.target.value ? parseInt(e.target.value) : undefined;
+                    setUserCentile(value);
+                  }}
+                  className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                />
+                {userCentile && (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-green-600 font-medium">
+                    {userCentile}th
+                  </div>
+                )}
+              </div>
+
               {/* Filter Toggle */}
               <button
                 onClick={() => setShowFilters(!showFilters)}
@@ -450,6 +475,9 @@ export default function Dashboard() {
                     key={job.id}
                     job={job}
                     userStatus={applications.get(job.id)}
+                    userCentile={userCentile}
+                    userName={user?.name}
+                    userEmail={user?.email}
                     onStatusChange={handleStatusChange}
                     onCardClick={setSelectedJob}
                     isSelected={selectedJob?.id === job.id}

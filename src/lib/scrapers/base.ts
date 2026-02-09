@@ -3,7 +3,7 @@
  * Common utilities and types for web scraping Irish medical job boards
  */
 
-import type { Job, SpecialtyType, SchemeType, HospitalGroup } from '@/types/database.types';
+import type { Job, SpecialtyType, SchemeType, HospitalGroup, HospitalTier } from '@/types/database.types';
 
 export interface ScrapedJob {
   title: string;
@@ -18,11 +18,14 @@ export interface ScrapedJob {
   job_spec_pdf_url?: string;
   informal_enquiries_email?: string;
   informal_enquiries_name?: string;
+  informal_contact_email?: string;
+  medical_manpower_email?: string;
   clinical_lead?: string;
   rotational_detail?: string;
   salary_range?: string;
   hours_per_week?: number;
   on_call?: boolean;
+  historical_centile_tier?: HospitalTier;
   source_url: string;
   source_platform: 'HSE_NRS' | 'REZOOMO' | 'ABOUT_HSE' | 'GLOBAL_MEDICS' | 'DOCTOR_JOBS' | 'IRISH_JOBS' | 'DIRECT_HOSPITAL';
   scraped_at: string;
