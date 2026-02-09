@@ -17,7 +17,7 @@ import {
   MapPin,
   Building2,
   Clock,
-  User,
+  User as UserIcon,
 } from 'lucide-react';
 import JobCard from '@/components/JobCard';
 import LoginModal from '@/components/LoginModal';
@@ -31,23 +31,26 @@ import {
   storageAPI,
   initializeLocalStorage,
   localApplicationsAPI,
+  type User,
 } from '@/lib/localStorage';
 import { checkDeadlines } from '@/lib/deadlineNotifications';
 import { format, differenceInHours } from 'date-fns';
 
 export default function Dashboard() {
   // Auth state
-  const [user, setUser] = useState<{ email: string; name: string } | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [showLoginModal, setShowLoginModal] = useState(false);
 
   // Data state
   const [jobs, setJobs] = useState<Job[]>([]);
   const [applications, setApplications] = useState<Map<string, ApplicationStatus>>(new Map());
+  const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [loading, setLoading] = useState(true);
 
   // UI state
   const [searchQuery, setSearchQuery] = useState('');
+  const [showSavedOnly, setShowSavedOnly] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
 
@@ -88,12 +91,15 @@ export default function Dashboard() {
       setLoading(true);
       const jobsData = await storageAPI.jobs.getActiveJobs();
       const appsData = await storageAPI.applications.getUserApplications();
+      const favoritesData = storageAPI.favorites.getFavorites();
 
       setJobs(jobsData);
 
       const appsMap = new Map();
       appsData.forEach(app => appsMap.set(app.job_id, app.status));
       setApplications(appsMap);
+
+      setFavorites(new Set(favoritesData));
 
       if (jobsData.length > 0) {
         setSelectedJob(jobsData[0]);
@@ -120,6 +126,19 @@ export default function Dashboard() {
   const handleStatusChange = async (jobId: string, status: ApplicationStatus) => {
     await storageAPI.applications.updateStatus(jobId, status);
     setApplications(prev => new Map(prev).set(jobId, status));
+  };
+
+  const handleFavoriteToggle = (jobId: string) => {
+    const isFavorite = storageAPI.favorites.toggleFavorite(jobId);
+    setFavorites(prev => {
+      const newFavorites = new Set(prev);
+      if (isFavorite) {
+        newFavorites.add(jobId);
+      } else {
+        newFavorites.delete(jobId);
+      }
+      return newFavorites;
+    });
   };
 
   const toggleFilter = (
@@ -157,6 +176,9 @@ export default function Dashboard() {
 
   // Apply filters and search
   const filteredJobs = jobs.filter(job => {
+    // Saved jobs filter
+    if (showSavedOnly && !favorites.has(job.id)) return false;
+
     // Search
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
@@ -226,7 +248,7 @@ export default function Dashboard() {
             <div className="flex items-center gap-1.5 sm:gap-4">
               {/* User Info */}
               <div className="hidden sm:flex items-center gap-3 px-3 py-1.5 bg-slate-50 rounded-lg border border-slate-200">
-                <User className="w-4 h-4 text-slate-600" />
+                <UserIcon className="w-4 h-4 text-slate-600" />
                 <span className="text-sm font-medium text-slate-700">{user.name}</span>
               </div>
 
@@ -305,15 +327,26 @@ export default function Dashboard() {
           {/* Left Pane - Job List */}
           <div className={`lg:col-span-5 xl:col-span-4 space-y-4 ${selectedJob ? 'hidden lg:block' : ''}`}>
             {/* Stats Banner */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="bg-linkedin-blue rounded-lg p-4 text-white shadow-sm">
-                <p className="text-xs font-medium mb-1">Active Jobs</p>
-                <p className="text-3xl font-bold">{filteredJobs.length}</p>
+            <div className="grid grid-cols-3 gap-2">
+              <div className="bg-linkedin-blue rounded-lg p-3 text-white shadow-sm">
+                <p className="text-[10px] font-medium mb-1">Active Jobs</p>
+                <p className="text-2xl font-bold">{filteredJobs.length}</p>
               </div>
-              <div className="bg-green-600 rounded-lg p-4 text-white shadow-sm">
-                <p className="text-xs font-medium mb-1">Applied</p>
-                <p className="text-3xl font-bold">{appStats.applied}</p>
+              <div className="bg-green-600 rounded-lg p-3 text-white shadow-sm">
+                <p className="text-[10px] font-medium mb-1">Applied</p>
+                <p className="text-2xl font-bold">{appStats.applied}</p>
               </div>
+              <button
+                onClick={() => setShowSavedOnly(!showSavedOnly)}
+                className={`rounded-lg p-3 shadow-sm transition-colors ${
+                  showSavedOnly
+                    ? 'bg-red-600 text-white'
+                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
+              >
+                <p className="text-[10px] font-medium mb-1">Saved Jobs</p>
+                <p className="text-2xl font-bold">{favorites.size}</p>
+              </button>
             </div>
 
             {/* Search & Filters */}
@@ -478,8 +511,10 @@ export default function Dashboard() {
                     userCentile={userCentile}
                     userName={user?.name}
                     userEmail={user?.email}
+                    isFavorite={favorites.has(job.id)}
                     onStatusChange={handleStatusChange}
                     onCardClick={setSelectedJob}
+                    onFavoriteToggle={handleFavoriteToggle}
                     isSelected={selectedJob?.id === job.id}
                   />
                 ))

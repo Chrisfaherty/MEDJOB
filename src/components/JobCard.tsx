@@ -13,6 +13,7 @@ import {
   Calendar,
   TrendingUp,
   Send,
+  Heart,
 } from 'lucide-react';
 import type { Job, ApplicationStatus, MatchRating } from '@/types/database.types';
 import {
@@ -31,8 +32,10 @@ interface JobCardProps {
   userCentile?: number;
   userName?: string;
   userEmail?: string;
+  isFavorite?: boolean;
   onStatusChange?: (jobId: string, status: ApplicationStatus) => void;
   onCardClick?: (job: Job) => void;
+  onFavoriteToggle?: (jobId: string) => void;
   isSelected?: boolean;
 }
 
@@ -42,8 +45,10 @@ export default function JobCard({
   userCentile,
   userName,
   userEmail,
+  isFavorite = false,
   onStatusChange,
   onCardClick,
+  onFavoriteToggle,
   isSelected = false,
 }: JobCardProps) {
   const [isHovered, setIsHovered] = useState(false);
@@ -302,11 +307,27 @@ export default function JobCard({
         </div>
       </div>
 
-      {/* Source Badge */}
-      <div className="absolute top-2 right-2">
+      {/* Source Badge & Favorite Button */}
+      <div className="absolute top-2 right-2 flex items-center gap-2">
         <span className="text-[10px] px-2 py-0.5 bg-white/90 backdrop-blur-sm border border-slate-200 rounded-full text-slate-600 font-medium">
           {job.source}
         </span>
+        {onFavoriteToggle && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onFavoriteToggle(job.id);
+            }}
+            className={`p-1.5 rounded-full transition-all duration-200 ${
+              isFavorite
+                ? 'bg-red-100 text-red-600 hover:bg-red-200'
+                : 'bg-white/90 backdrop-blur-sm border border-slate-200 text-slate-400 hover:text-red-600 hover:bg-red-50'
+            }`}
+            title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+          >
+            <Heart className={`w-4 h-4 ${isFavorite ? 'fill-current' : ''}`} />
+          </button>
+        )}
       </div>
     </div>
   );

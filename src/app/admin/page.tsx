@@ -21,13 +21,21 @@ export default function AdminPage() {
         <ScraperAdmin />
 
         {/* Quick Links */}
-        <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="mt-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <a
             href="/"
             className="p-4 bg-white rounded-lg border border-slate-200 hover:border-linkedin-blue transition-colors"
           >
             <h3 className="font-semibold text-slate-900 mb-1">← Back to Dashboard</h3>
             <p className="text-sm text-slate-600">Return to main job listings</p>
+          </a>
+
+          <a
+            href="/admin/users"
+            className="p-4 bg-white rounded-lg border border-slate-200 hover:border-linkedin-blue transition-colors"
+          >
+            <h3 className="font-semibold text-slate-900 mb-1">User Management</h3>
+            <p className="text-sm text-slate-600">Manage users and permissions</p>
           </a>
 
           <a
