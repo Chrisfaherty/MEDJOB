@@ -238,7 +238,7 @@ BEGIN
     NEW.email,
     COALESCE(NEW.raw_user_meta_data->>'name', split_part(NEW.email, '@', 1)),
     CASE
-      WHEN NEW.email IN ('admin@medjob.ie', 'christopher.faherty@gmail.com') THEN 'admin'
+      WHEN NEW.email IN ('admin@medjob.ie', 'chrismactom@gmail.com') THEN 'admin'
       ELSE 'user'
     END
   );
