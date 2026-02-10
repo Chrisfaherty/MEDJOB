@@ -4,64 +4,104 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { User, Shield, Trash2, ArrowLeft, UserCog } from 'lucide-react';
-import { storageAPI, type User as UserType } from '@/lib/localStorage';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabaseUserAPI } from '@/lib/supabase';
+
+interface UserProfile {
+  id: string;
+  email: string;
+  name: string;
+  role: 'admin' | 'user';
+  created_at: string;
+}
 
 export default function AdminUsersPage() {
   const router = useRouter();
-  const [currentUser, setCurrentUser] = useState<UserType | null>(null);
-  const [users, setUsers] = useState<UserType[]>([]);
+  const { user, loading: authLoading, isAdmin } = useAuth();
+  const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const user = storageAPI.user.getCurrentUser();
+    // Wait for auth to load
+    if (authLoading) return;
 
     if (!user) {
       router.push('/');
       return;
     }
 
-    if (user.role !== 'admin') {
+    if (!isAdmin) {
       alert('Access denied. Admin privileges required.');
       router.push('/');
       return;
     }
 
-    setCurrentUser(user);
     loadUsers();
-  }, [router]);
+  }, [user, authLoading, isAdmin, router]);
 
-  const loadUsers = () => {
-    setLoading(true);
-    const allUsers = storageAPI.user.getAllUsers();
-    setUsers(allUsers);
-    setLoading(false);
+  const loadUsers = async () => {
+    try {
+      setLoading(true);
+      const allUsers = await supabaseUserAPI.getAllUsers();
+      setUsers(allUsers as UserProfile[]);
+    } catch (error) {
+      console.error('Error loading users:', error);
+      alert('Failed to load users');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleDeleteUser = (userId: string) => {
-    if (!confirm('Are you sure you want to delete this user?')) return;
+  const handleDeleteUser = async (userId: string) => {
+    if (!confirm('Are you sure you want to delete this user? This will remove all their data.')) return;
 
-    const success = storageAPI.user.deleteUser(userId);
-    if (success) {
-      loadUsers();
-    } else {
+    try {
+      const success = await supabaseUserAPI.deleteUser(userId);
+      if (success) {
+        await loadUsers();
+        alert('User deleted successfully');
+      } else {
+        alert('Failed to delete user');
+      }
+    } catch (error) {
+      console.error('Error deleting user:', error);
       alert('Failed to delete user');
     }
   };
 
-  const handleToggleRole = (userId: string, currentRole: 'admin' | 'user') => {
+  const handleToggleRole = async (userId: string, currentRole: 'admin' | 'user') => {
     const newRole = currentRole === 'admin' ? 'user' : 'admin';
 
     if (!confirm(`Change user role to ${newRole}?`)) return;
 
-    const success = storageAPI.user.updateUserRole(userId, newRole);
-    if (success) {
-      loadUsers();
-    } else {
+    try {
+      const success = await supabaseUserAPI.updateUserRole(userId, newRole);
+      if (success) {
+        await loadUsers();
+        alert(`User role updated to ${newRole}`);
+      } else {
+        alert('Failed to update user role');
+      }
+    } catch (error) {
+      console.error('Error updating user role:', error);
       alert('Failed to update user role');
     }
   };
 
-  if (!currentUser || currentUser.role !== 'admin') {
+  // Show loading state while auth initializes
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-linkedin-blue mx-auto mb-4"></div>
+          <p className="text-slate-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Redirect if not admin
+  if (!user || !isAdmin) {
     return null;
   }
 
@@ -167,7 +207,7 @@ export default function AdminUsersPage() {
                         </span>
                       </td>
                       <td className="px-6 py-4 text-sm text-slate-600">
-                        {new Date(user.createdAt).toLocaleDateString('en-IE', {
+                        {new Date(user.created_at).toLocaleDateString('en-IE', {
                           year: 'numeric',
                           month: 'short',
                           day: 'numeric',
@@ -182,16 +222,16 @@ export default function AdminUsersPage() {
                                 ? 'bg-amber-100 text-amber-700 hover:bg-amber-200'
                                 : 'bg-linkedin-blue text-white hover:bg-linkedin-blue-dark'
                             }`}
-                            disabled={user.id === currentUser.id}
-                            title={user.id === currentUser.id ? 'Cannot change your own role' : ''}
+                            disabled={user.id === user.id}
+                            title={user.id === user.id ? 'Cannot change your own role' : ''}
                           >
                             {user.role === 'admin' ? 'Demote to User' : 'Promote to Admin'}
                           </button>
                           <button
                             onClick={() => handleDeleteUser(user.id)}
                             className="p-2 text-red-600 hover:bg-red-50 rounded-md transition-colors"
-                            disabled={user.id === currentUser.id}
-                            title={user.id === currentUser.id ? 'Cannot delete yourself' : 'Delete user'}
+                            disabled={user.id === user.id}
+                            title={user.id === user.id ? 'Cannot delete yourself' : 'Delete user'}
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -211,9 +251,10 @@ export default function AdminUsersPage() {
           <ul className="text-sm text-blue-800 space-y-1">
             <li>• Admins have full access to scraper controls and user management</li>
             <li>• Regular users can view jobs, save favorites, and track applications</li>
-            <li>• Admin emails are configured in localStorage.ts (add your email there for admin access)</li>
-            <li>• Users are created automatically when they first log in</li>
+            <li>• Admin emails are configured in the database trigger (check NEXT_PUBLIC_ADMIN_EMAILS)</li>
+            <li>• Users are created automatically when they sign up via Supabase Auth</li>
             <li>• You cannot change your own role or delete yourself</li>
+            <li>• User management uses Supabase for proper permission handling</li>
           </ul>
         </div>
       </div>

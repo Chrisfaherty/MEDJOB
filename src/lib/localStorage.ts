@@ -310,11 +310,258 @@ export const localFavoritesAPI = {
   },
 };
 
-// Combined API that tries Supabase first, falls back to local
+// =====================================================
+// HYBRID STORAGE API
+// Tries Supabase first, falls back to localStorage
+// =====================================================
+
+import {
+  supabaseJobsAPI,
+  supabaseApplicationsAPI,
+  supabaseFavoritesAPI,
+  supabasePreferencesAPI,
+} from './supabase';
+
+/**
+ * Check if Supabase is configured
+ */
+const isSupabaseConfigured = () => {
+  return !!(
+    process.env.NEXT_PUBLIC_SUPABASE_URL &&
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  );
+};
+
+/**
+ * Combined API that tries Supabase first, falls back to localStorage
+ * Provides seamless migration path and offline capability
+ */
 export const storageAPI = {
-  jobs: localJobsAPI,
-  applications: localApplicationsAPI,
+  jobs: {
+    async getActiveJobs(): Promise<Job[]> {
+      if (isSupabaseConfigured()) {
+        try {
+          return await supabaseJobsAPI.getActiveJobs();
+        } catch (error) {
+          console.error('Supabase error, falling back to localStorage:', error);
+          return await localJobsAPI.getActiveJobs();
+        }
+      }
+      return await localJobsAPI.getActiveJobs();
+    },
+
+    async getJobById(id: string): Promise<Job | null> {
+      if (isSupabaseConfigured()) {
+        try {
+          return await supabaseJobsAPI.getJobById(id);
+        } catch (error) {
+          console.error('Supabase error, falling back to localStorage:', error);
+          return await localJobsAPI.getJobById(id);
+        }
+      }
+      return await localJobsAPI.getJobById(id);
+    },
+
+    async searchJobs(query: string): Promise<Job[]> {
+      if (isSupabaseConfigured()) {
+        try {
+          return await supabaseJobsAPI.searchJobs(query);
+        } catch (error) {
+          console.error('Supabase error, falling back to localStorage:', error);
+          return await localJobsAPI.searchJobs(query);
+        }
+      }
+      return await localJobsAPI.searchJobs(query);
+    },
+
+    async filterJobs(filters: {
+      specialties?: string[];
+      hospital_groups?: string[];
+      counties?: string[];
+      scheme_types?: string[];
+    }): Promise<Job[]> {
+      if (isSupabaseConfigured()) {
+        try {
+          return await supabaseJobsAPI.filterJobs(filters);
+        } catch (error) {
+          console.error('Supabase error, falling back to localStorage:', error);
+          return await localJobsAPI.filterJobs(filters);
+        }
+      }
+      return await localJobsAPI.filterJobs(filters);
+    },
+  },
+
+  applications: {
+    async getUserApplications(): Promise<UserApplication[]> {
+      if (isSupabaseConfigured()) {
+        try {
+          return await supabaseApplicationsAPI.getUserApplications();
+        } catch (error) {
+          console.error('Supabase error, falling back to localStorage:', error);
+          return await localApplicationsAPI.getUserApplications();
+        }
+      }
+      return await localApplicationsAPI.getUserApplications();
+    },
+
+    async getApplicationForJob(jobId: string): Promise<UserApplication | null> {
+      if (isSupabaseConfigured()) {
+        try {
+          return await supabaseApplicationsAPI.getApplicationForJob(jobId);
+        } catch (error) {
+          console.error('Supabase error, falling back to localStorage:', error);
+          return await localApplicationsAPI.getApplicationForJob(jobId);
+        }
+      }
+      return await localApplicationsAPI.getApplicationForJob(jobId);
+    },
+
+    async updateStatus(
+      jobId: string,
+      status: ApplicationStatus,
+      notes?: string
+    ): Promise<UserApplication> {
+      if (isSupabaseConfigured()) {
+        try {
+          return await supabaseApplicationsAPI.updateStatus(jobId, status, notes);
+        } catch (error) {
+          console.error('Supabase error, falling back to localStorage:', error);
+          return await localApplicationsAPI.updateStatus(jobId, status, notes);
+        }
+      }
+      return await localApplicationsAPI.updateStatus(jobId, status, notes);
+    },
+
+    async getApplicationStats() {
+      if (isSupabaseConfigured()) {
+        try {
+          return await supabaseApplicationsAPI.getApplicationStats();
+        } catch (error) {
+          console.error('Supabase error, falling back to localStorage:', error);
+          return await localApplicationsAPI.getApplicationStats();
+        }
+      }
+      return await localApplicationsAPI.getApplicationStats();
+    },
+  },
+
+  favorites: {
+    // Synchronous method for immediate UI updates
+    getFavorites(): string[] {
+      return localFavoritesAPI.getFavorites();
+    },
+
+    // Async method for Supabase
+    async getFavoritesAsync(): Promise<string[]> {
+      if (isSupabaseConfigured()) {
+        try {
+          return await supabaseFavoritesAPI.getFavorites();
+        } catch (error) {
+          console.error('Supabase error, falling back to localStorage:', error);
+          return localFavoritesAPI.getFavorites();
+        }
+      }
+      return localFavoritesAPI.getFavorites();
+    },
+
+    async addFavorite(jobId: string): Promise<void> {
+      if (isSupabaseConfigured()) {
+        try {
+          await supabaseFavoritesAPI.addFavorite(jobId);
+          // Also update localStorage for immediate UI feedback
+          localFavoritesAPI.addFavorite(jobId);
+        } catch (error) {
+          console.error('Supabase error, using localStorage:', error);
+          localFavoritesAPI.addFavorite(jobId);
+        }
+      } else {
+        localFavoritesAPI.addFavorite(jobId);
+      }
+    },
+
+    async removeFavorite(jobId: string): Promise<void> {
+      if (isSupabaseConfigured()) {
+        try {
+          await supabaseFavoritesAPI.removeFavorite(jobId);
+          // Also update localStorage for immediate UI feedback
+          localFavoritesAPI.removeFavorite(jobId);
+        } catch (error) {
+          console.error('Supabase error, using localStorage:', error);
+          localFavoritesAPI.removeFavorite(jobId);
+        }
+      } else {
+        localFavoritesAPI.removeFavorite(jobId);
+      }
+    },
+
+    async toggleFavorite(jobId: string): Promise<boolean> {
+      if (isSupabaseConfigured()) {
+        try {
+          const result = await supabaseFavoritesAPI.toggleFavorite(jobId);
+          // Sync with localStorage
+          if (result) {
+            localFavoritesAPI.addFavorite(jobId);
+          } else {
+            localFavoritesAPI.removeFavorite(jobId);
+          }
+          return result;
+        } catch (error) {
+          console.error('Supabase error, using localStorage:', error);
+          return localFavoritesAPI.toggleFavorite(jobId);
+        }
+      } else {
+        return localFavoritesAPI.toggleFavorite(jobId);
+      }
+    },
+
+    isFavorite(jobId: string): boolean {
+      return localFavoritesAPI.isFavorite(jobId);
+    },
+
+    async getFavoriteJobs(): Promise<Job[]> {
+      if (isSupabaseConfigured()) {
+        try {
+          return await supabaseFavoritesAPI.getFavoriteJobs();
+        } catch (error) {
+          console.error('Supabase error, falling back to localStorage:', error);
+          return await localFavoritesAPI.getFavoriteJobs();
+        }
+      }
+      return await localFavoritesAPI.getFavoriteJobs();
+    },
+  },
+
+  preferences: {
+    async getPreferences() {
+      if (isSupabaseConfigured()) {
+        try {
+          return await supabasePreferencesAPI.getPreferences();
+        } catch (error) {
+          console.error('Supabase error, falling back to localStorage:', error);
+          return await localPreferencesAPI.getPreferences();
+        }
+      }
+      return await localPreferencesAPI.getPreferences();
+    },
+
+    async updatePreferences(preferences: any) {
+      if (isSupabaseConfigured()) {
+        try {
+          await supabasePreferencesAPI.updatePreferences(preferences);
+          // Also update localStorage for offline access
+          await localPreferencesAPI.updatePreferences(preferences);
+        } catch (error) {
+          console.error('Supabase error, using localStorage:', error);
+          await localPreferencesAPI.updatePreferences(preferences);
+        }
+      } else {
+        await localPreferencesAPI.updatePreferences(preferences);
+      }
+    },
+  },
+
+  // Keep existing user API that uses localStorage
+  // (Will be handled by AuthContext for Supabase)
   user: localUserAPI,
-  preferences: localPreferencesAPI,
-  favorites: localFavoritesAPI,
 };

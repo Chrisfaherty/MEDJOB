@@ -6,6 +6,7 @@
 import { HSEScraper } from './hse';
 import type { ScrapedJob, ScraperResult } from './base';
 import type { Job } from '@/types/database.types';
+import { supabase } from '@/lib/supabase';
 
 export interface OrchestrationResult {
   total_jobs_scraped: number;
@@ -233,10 +234,108 @@ export class ScraperOrchestrator {
    * Save to Supabase database
    */
   private async saveToSupabase(jobs: ScrapedJob[]): Promise<number> {
-    // This will be implemented when we integrate with Supabase
-    // For now, return 0
-    console.log(`Would save ${jobs.length} jobs to Supabase`);
-    return 0;
+    try {
+      // Convert ScrapedJob to Job format
+      const convertedJobs: Partial<Job>[] = jobs.map((scrapedJob, index) => ({
+        title: scrapedJob.title,
+        grade: scrapedJob.grade,
+        specialty: scrapedJob.specialty,
+        scheme_type: scrapedJob.scheme_type,
+        hospital_id: scrapedJob.hospital_name.toLowerCase().replace(/[^a-z0-9]/g, '_'),
+        hospital_name: scrapedJob.hospital_name,
+        hospital_group: scrapedJob.hospital_group,
+        county: scrapedJob.county,
+        start_date: this.calculateStartDate(scrapedJob.application_deadline),
+        duration_months: 6, // Default assumption
+        rotational_detail: scrapedJob.rotational_detail,
+        contract_type: scrapedJob.scheme_type.includes('TRAINING') ? 'Training' : 'Specified Purpose',
+        application_deadline: scrapedJob.application_deadline,
+        application_url: scrapedJob.application_url,
+        job_spec_pdf_url: scrapedJob.job_spec_pdf_url,
+        informal_enquiries_email: scrapedJob.informal_enquiries_email,
+        informal_enquiries_name: scrapedJob.informal_enquiries_name,
+        informal_contact_email: scrapedJob.informal_contact_email,
+        medical_manpower_email: scrapedJob.medical_manpower_email,
+        clinical_lead: scrapedJob.clinical_lead,
+        historical_centile_tier: scrapedJob.historical_centile_tier,
+        source: this.mapSourcePlatform(scrapedJob.source_platform),
+        external_id: `${scrapedJob.source_platform}_${scrapedJob.title.substring(0, 20)}_${scrapedJob.application_deadline}`,
+        is_active: true,
+        last_scraped_at: scrapedJob.scraped_at,
+      }));
+
+      // Use upsert to handle duplicates at database level
+      // The unique constraint on (title, hospital_name, application_deadline) handles deduplication
+      const { data, error } = await supabase
+        .from('jobs')
+        .upsert(convertedJobs, {
+          onConflict: 'title,hospital_name,application_deadline',
+          ignoreDuplicates: false, // Update existing records
+        })
+        .select();
+
+      if (error) {
+        console.error('Error upserting jobs to Supabase:', error);
+        throw error;
+      }
+
+      const savedCount = data?.length || 0;
+      console.log(`Successfully saved ${savedCount} jobs to Supabase`);
+
+      // Log scraping operation
+      await this.logScrapingOperation(
+        jobs.length,
+        savedCount,
+        'SUCCESS',
+        null
+      );
+
+      return savedCount;
+    } catch (error) {
+      console.error('Failed to save to Supabase:', error);
+
+      // Log error
+      await this.logScrapingOperation(
+        jobs.length,
+        0,
+        'FAILURE',
+        (error as Error).message
+      );
+
+      // Fall back to localStorage if Supabase fails
+      if (typeof window !== 'undefined') {
+        console.log('Falling back to localStorage');
+        return this.saveToLocalStorage(jobs);
+      }
+      return 0;
+    }
+  }
+
+  /**
+   * Log scraping operation to database
+   */
+  private async logScrapingOperation(
+    jobsFound: number,
+    jobsSaved: number,
+    status: 'SUCCESS' | 'FAILURE' | 'PARTIAL',
+    errorMessage: string | null
+  ) {
+    try {
+      await supabase.from('scraping_logs').insert({
+        source: 'HSE', // Could be dynamic based on scraper
+        status,
+        jobs_found: jobsFound,
+        jobs_new: jobsSaved,
+        jobs_updated: 0,
+        error_message: errorMessage,
+        started_at: new Date().toISOString(),
+        completed_at: new Date().toISOString(),
+        duration_seconds: 0, // Could calculate actual duration
+      });
+    } catch (error) {
+      console.error('Error logging scraping operation:', error);
+      // Don't throw - logging failure shouldn't stop scraping
+    }
   }
 
   /**

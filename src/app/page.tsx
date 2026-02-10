@@ -27,18 +27,14 @@ import {
   HOSPITAL_GROUP_LABELS,
   SCHEME_TYPE_LABELS,
 } from '@/types/database.types';
-import {
-  storageAPI,
-  initializeLocalStorage,
-  localApplicationsAPI,
-  type User,
-} from '@/lib/localStorage';
+import { storageAPI, initializeLocalStorage } from '@/lib/localStorage';
 import { checkDeadlines } from '@/lib/deadlineNotifications';
 import { format, differenceInHours } from 'date-fns';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function Dashboard() {
-  // Auth state
-  const [user, setUser] = useState<User | null>(null);
+  // Auth state from context
+  const { user, loading: authLoading } = useAuth();
   const [showLoginModal, setShowLoginModal] = useState(false);
 
   // Data state
@@ -73,18 +69,15 @@ export default function Dashboard() {
   // Initialize
   useEffect(() => {
     initializeLocalStorage();
-    checkAuth();
     loadData();
   }, []);
 
-  const checkAuth = () => {
-    const currentUser = storageAPI.user.getCurrentUser();
-    if (currentUser) {
-      setUser(currentUser);
-    } else {
+  // Show login modal if not authenticated (after auth loading completes)
+  useEffect(() => {
+    if (!authLoading && !user) {
       setShowLoginModal(true);
     }
-  };
+  }, [authLoading, user]);
 
   const loadData = async () => {
     try {
@@ -111,15 +104,9 @@ export default function Dashboard() {
     }
   };
 
-  const handleLogin = async (email: string) => {
-    const newUser = await storageAPI.user.login(email);
-    setUser(newUser);
-    setShowLoginModal(false);
-  };
-
-  const handleLogout = () => {
-    storageAPI.user.logout();
-    setUser(null);
+  const handleLogout = async () => {
+    const { authService } = await import('@/lib/auth');
+    await authService.signOut();
     setShowLoginModal(true);
   };
 
@@ -217,12 +204,24 @@ export default function Dashboard() {
     filters.counties.length +
     filters.schemeTypes.length;
 
+  // Show loading state while auth initializes
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-linkedin-blue mx-auto mb-4"></div>
+          <p className="text-slate-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show login modal if not authenticated
   if (!user) {
     return (
       <LoginModal
         isOpen={showLoginModal}
         onClose={() => setShowLoginModal(false)}
-        onLogin={handleLogin}
       />
     );
   }
