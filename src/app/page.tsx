@@ -115,8 +115,8 @@ export default function Dashboard() {
     setApplications(prev => new Map(prev).set(jobId, status));
   };
 
-  const handleFavoriteToggle = (jobId: string) => {
-    const isFavorite = storageAPI.favorites.toggleFavorite(jobId);
+  const handleFavoriteToggle = async (jobId: string) => {
+    const isFavorite = await storageAPI.favorites.toggleFavorite(jobId);
     setFavorites(prev => {
       const newFavorites = new Set(prev);
       if (isFavorite) {

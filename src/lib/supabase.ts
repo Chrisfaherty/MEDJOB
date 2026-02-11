@@ -227,11 +227,12 @@ export const supabaseApplicationsAPI = {
       .single();
 
     if (error) throw error;
+    const stats = data as { total: number; applied: number; interview: number; shortlisted: number };
     return {
-      total: Number(data.total),
-      applied: Number(data.applied),
-      interview: Number(data.interview),
-      shortlisted: Number(data.shortlisted),
+      total: Number(stats.total),
+      applied: Number(stats.applied),
+      interview: Number(stats.interview),
+      shortlisted: Number(stats.shortlisted),
     };
   },
 };

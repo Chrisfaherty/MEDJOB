@@ -1,13 +1,31 @@
 /**
  * HSE Job Scraper (about.hse.ie)
- * Scrapes medical and dental jobs from the official HSE job portal
+ * Scrapes medical and dental jobs from the official HSE job portal.
+ * Uses cheerio for robust HTML parsing.
  */
 
-import { BaseScraper, type ScrapedJob, type ScraperResult, delay } from './base';
-import hospitalsData from '@/data/hospitals.json';
+import * as cheerio from 'cheerio';
+import type { Element } from 'domhandler';
+import { BaseScraper, type ScrapedJob, type ScraperResult, delay, withRetry } from './base';
+import { matchHospital, matchHospitalByCounty, inferCounty } from './hospital-matcher';
 import { getHospitalTier } from '@/lib/matchProbability';
 
-const hospitals = hospitalsData.hospitals;
+/** Keywords that indicate an NCHD-relevant job */
+const NCHD_KEYWORDS = [
+  'sho', 'registrar', 'senior house officer', 'nchd',
+  'intern', 'doctor', 'medical officer', 'physician',
+  'specialist registrar', 'spr',
+];
+
+/** Keywords that indicate a non-NCHD job — exclude these */
+const EXCLUDE_KEYWORDS = [
+  'consultant', 'nurse', 'nursing', 'midwife', 'midwifery',
+  'admin', 'clerical', 'porter', 'housekeeper', 'chef',
+  'physiotherapist', 'occupational therapist', 'social worker',
+  'pharmacist', 'radiographer', 'dietitian', 'speech',
+  'dental nurse', 'dental hygienist', 'healthcare assistant',
+  'psychologist', 'manager', 'director', 'chief',
+];
 
 export class HSEScraper extends BaseScraper {
   private readonly medicalJobsUrl = 'https://about.hse.ie/jobs/job-search/?category=medical+and+dental';
@@ -20,206 +38,287 @@ export class HSEScraper extends BaseScraper {
     try {
       const jobs: ScrapedJob[] = [];
 
-      // Scrape multiple pages (HSE shows 10 jobs per page, we'll get first 5 pages = 50 jobs)
-      for (let page = 1; page <= 5; page++) {
-        const pageUrl = `${this.medicalJobsUrl}&page=${page}`;
-        const pageJobs = await this.scrapePage(pageUrl);
-        jobs.push(...pageJobs);
-
-        // Rate limiting - be respectful
-        await delay(2000);
+      // First, figure out how many pages there are
+      const firstPageHtml = await this.fetchPage(`${this.medicalJobsUrl}&page=1`);
+      if (!firstPageHtml) {
+        return this.createResult([], 'Failed to fetch first page');
       }
 
+      const totalPages = this.getTotalPages(firstPageHtml);
+      console.log(`HSE scraper: Found ${totalPages} pages of medical & dental jobs`);
+
+      // Parse first page
+      const firstPageJobs = await this.parseListingPage(firstPageHtml);
+      jobs.push(...firstPageJobs);
+
+      // Scrape remaining pages
+      for (let page = 2; page <= totalPages; page++) {
+        await delay(2000); // Rate limit
+        const html = await this.fetchPage(`${this.medicalJobsUrl}&page=${page}`);
+        if (html) {
+          const pageJobs = await this.parseListingPage(html);
+          jobs.push(...pageJobs);
+          console.log(`HSE page ${page}/${totalPages}: ${pageJobs.length} NCHD jobs (${jobs.length} total)`);
+        }
+      }
+
+      console.log(`HSE scraper complete: ${jobs.length} NCHD jobs found`);
       return this.createResult(jobs);
     } catch (error) {
+      console.error('HSE scraper error:', error);
       return this.createResult([], (error as Error).message);
     }
   }
 
-  private async scrapePage(url: string): Promise<ScrapedJob[]> {
+  private async fetchPage(url: string): Promise<string | null> {
+    try {
+      const response = await withRetry(() =>
+        fetch(url, {
+          headers: {
+            'User-Agent': 'MedJob-IE/1.0 (NCHD Job Aggregator)',
+            'Accept': 'text/html',
+          },
+        })
+      );
+      if (!response.ok) {
+        console.error(`HSE fetch failed: ${response.status} ${response.statusText} for ${url}`);
+        return null;
+      }
+      return await response.text();
+    } catch (error) {
+      console.error(`HSE fetch error for ${url}:`, error);
+      return null;
+    }
+  }
+
+  /**
+   * Determine total number of pages from pagination element
+   */
+  private getTotalPages(html: string): number {
+    const $ = cheerio.load(html);
+
+    // Look for pagination links — the last numbered page link
+    const pageLinks = $('a[href*="page="]');
+    let maxPage = 1;
+
+    pageLinks.each((_, el) => {
+      const href = $(el).attr('href') || '';
+      const match = href.match(/page=(\d+)/);
+      if (match) {
+        const pageNum = parseInt(match[1], 10);
+        if (pageNum > maxPage) maxPage = pageNum;
+      }
+    });
+
+    // Also check the text of pagination elements
+    $('.pagination li, .pager li, nav[aria-label*="pagination"] a').each((_, el) => {
+      const text = $(el).text().trim();
+      const num = parseInt(text, 10);
+      if (!isNaN(num) && num > maxPage) maxPage = num;
+    });
+
+    // Safety cap at 30 pages (300 jobs) to prevent runaway scraping
+    return Math.min(maxPage, 30);
+  }
+
+  /**
+   * Parse a listing page and return NCHD-relevant jobs
+   */
+  private async parseListingPage(html: string): Promise<ScrapedJob[]> {
+    const $ = cheerio.load(html);
     const jobs: ScrapedJob[] = [];
 
-    try {
-      const response = await fetch(url);
-      const html = await response.text();
+    // Find job cards — HSE uses various card structures
+    // Try common patterns: article elements, list items with job links, div cards
+    const jobElements = $(
+      'article, .job-listing, .job-card, .search-results-item, ' +
+      '[class*="job"], [class*="listing"], [class*="result"]'
+    ).toArray();
 
-      // Parse HTML using simple string matching (in production, use a proper HTML parser like cheerio)
-      const jobMatches = this.extractJobListings(html);
+    // If no structured elements found, fall back to finding all job links
+    if (jobElements.length === 0) {
+      return this.parseJobLinks($);
+    }
 
-      for (const jobData of jobMatches) {
-        try {
-          const job = await this.parseJobListing(jobData, url);
-          if (job) {
-            jobs.push(job);
-          }
-        } catch (error) {
-          console.error('Error parsing job:', error);
-          // Continue with other jobs
-        }
-      }
-    } catch (error) {
-      console.error(`Error scraping page ${url}:`, error);
+    for (const el of jobElements) {
+      const $el = $(el);
+      const job = this.parseJobCard($, $el);
+      if (job) jobs.push(job);
+    }
+
+    // If card parsing got nothing, fall back to link extraction
+    if (jobs.length === 0) {
+      return this.parseJobLinks($);
     }
 
     return jobs;
   }
 
-  private extractJobListings(html: string): Array<{
-    title: string;
-    url: string;
-    county: string;
-    posted: string;
-  }> {
-    const listings: Array<{ title: string; url: string; county: string; posted: string }> = [];
-
-    // Extract job cards using regex patterns
-    // Pattern: /jobs/job-search/[job-slug]/
-    const urlPattern = /\/jobs\/job-search\/([^"\/]+)\//g;
-    const urls = Array.from(html.matchAll(urlPattern)).map(m => ({
-      slug: m[1],
-      url: `https://about.hse.ie/jobs/job-search/${m[1]}/`
-    }));
-
-    // Remove duplicate URLs (same job may appear multiple times in HTML)
-    const uniqueUrls = Array.from(new Map(urls.map(u => [u.url, u])).values());
-
-    // Extract titles - more flexible pattern to handle nested elements
-    // Use [\s\S] instead of . with /s flag for ES2015 compatibility
-    const titlePattern = /<h3[^>]*>([\s\S]*?)<\/h3>/g;
-    const titleMatches = Array.from(html.matchAll(titlePattern));
-    const titles = titleMatches.map(m => {
-      // Strip HTML tags and decode entities
-      const cleaned = m[1].replace(/<[^>]+>/g, '').trim();
-      return this.cleanText(cleaned);
-    });
-
-    // Extract counties - multiple patterns to handle variations
-    const countyPattern1 = /<span[^>]*>County:<\/span>\s*<span[^>]*>([^<]+)<\/span>/gi;
-    const countyPattern2 = /County:\s*([A-Z][a-z]+)/g;
-    const counties1 = Array.from(html.matchAll(countyPattern1)).map(m => m[1].trim());
-    const counties2 = Array.from(html.matchAll(countyPattern2)).map(m => m[1].trim());
-    const counties = counties1.length > 0 ? counties1 : counties2;
-
-    // Extract posted dates
-    const datePattern = /(\d{1,2}\s+(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4})/g;
-    const dates = Array.from(html.matchAll(datePattern)).map(m => m[1]);
-
-    // Combine the extracted data with validation
-    // Use unique URLs as the canonical list
-    for (let i = 0; i < uniqueUrls.length; i++) {
-      const title = titles[i]?.trim();
-      const url = uniqueUrls[i]?.url;
-
-      // Only add if we have at minimum a title and URL
-      if (title && url && title.length > 5) {
-        listings.push({
-          title,
-          url,
-          county: counties[i]?.trim() || this.inferCountyFromTitle(title),
-          posted: dates[i] || new Date().toISOString(),
-        });
-      }
-    }
-
-    console.log(`Extracted ${listings.length} job listings from HTML`);
-    return listings;
-  }
-
   /**
-   * Try to infer county from job title if not explicitly stated
+   * Parse a single job card element
    */
-  private inferCountyFromTitle(title: string): string {
-    const titleLower = title.toLowerCase();
-    const countyMap: Record<string, string> = {
-      'dublin': 'Dublin',
-      'cork': 'Cork',
-      'galway': 'Galway',
-      'limerick': 'Limerick',
-      'waterford': 'Waterford',
-      'kerry': 'Kerry',
-      'sligo': 'Sligo',
-      'donegal': 'Donegal',
-      'mayo': 'Mayo',
-      'meath': 'Meath',
-      'kilkenny': 'Kilkenny',
-      'tipperary': 'Tipperary',
-    };
+  private parseJobCard($: cheerio.CheerioAPI, $el: cheerio.Cheerio<any>): ScrapedJob | null {
+    // Extract title — try h2, h3, h4, or any heading inside the card
+    const titleEl = $el.find('h2 a, h3 a, h4 a, h2, h3, h4').first();
+    const title = this.cleanText(titleEl.text());
+    if (!title || title.length < 5) return null;
 
-    for (const [keyword, county] of Object.entries(countyMap)) {
-      if (titleLower.includes(keyword)) {
-        return county;
-      }
+    // Extract URL
+    let url = titleEl.attr('href') || $el.find('a').first().attr('href') || '';
+    if (url && !url.startsWith('http')) {
+      url = `https://about.hse.ie${url}`;
     }
 
-    // Default to Dublin for major teaching hospitals if county can't be determined
-    if (
-      titleLower.includes('mater') ||
-      titleLower.includes('beaumont') ||
-      titleLower.includes('james') ||
-      titleLower.includes('vincent') ||
-      titleLower.includes('tallaght')
-    ) {
-      return 'Dublin';
-    }
+    // Check NCHD relevance
+    if (!this.isNCHDJob(title)) return null;
 
-    return 'Dublin'; // Final fallback
-  }
+    // Extract county/location
+    const locationText = $el.find('[class*="location"], [class*="county"], .meta, .details').text();
+    const county = inferCounty(`${title} ${locationText}`);
 
-  private async parseJobListing(
-    jobData: { title: string; url: string; county: string; posted: string },
-    sourceUrl: string
-  ): Promise<ScrapedJob | null> {
-    // Determine if this is a relevant NCHD job
-    const title = jobData.title.toLowerCase();
-    if (
-      !title.includes('sho') &&
-      !title.includes('registrar') &&
-      !title.includes('senior house officer') &&
-      !title.includes('nchd')
-    ) {
-      return null; // Skip non-NCHD jobs
-    }
+    // Extract posted date
+    const dateText = $el.find('[class*="date"], time, .meta').text();
+    const postedDate = this.extractDate(dateText) || new Date();
 
-    // Find matching hospital from our database
-    const hospital = this.findHospitalByCounty(jobData.county);
-
-    // Extract reference code from title (e.g., "MW26KR10")
-    const refMatch = jobData.title.match(/[A-Z]{2}\d{2}[A-Z]{2}\d{2}/);
-    const referenceCode = refMatch ? refMatch[0] : '';
-
-    // Calculate deadline (HSE jobs typically have 2-3 week application windows)
-    const postedDate = new Date(jobData.posted);
+    // Calculate deadline (typically 2-3 weeks from posting)
     const deadline = new Date(postedDate);
-    deadline.setDate(deadline.getDate() + 21); // 3 weeks from posting
+    deadline.setDate(deadline.getDate() + 21);
 
-    // Get hospital tier for match probability
-    const hospitalTier = getHospitalTier(hospital?.name || 'HSE Facility');
+    // Match hospital
+    const hospital = matchHospital(title) || matchHospitalByCounty(county);
+    const hospitalName = hospital?.name || 'HSE Facility';
+    const hospitalGroup = hospital?.hospitalGroup || 'IEHG';
 
     return {
-      title: jobData.title,
-      grade: this.parseGrade(jobData.title),
-      specialty: this.parseSpecialty(jobData.title),
-      scheme_type: this.parseSchemeType(jobData.title),
-      hospital_name: hospital?.name || 'HSE Facility',
-      hospital_group: (hospital?.hospitalGroup as any) || 'IEHG',
-      county: jobData.county,
+      title,
+      grade: this.parseGrade(title),
+      specialty: this.parseSpecialty(title),
+      scheme_type: this.parseSchemeType(title),
+      hospital_name: hospitalName,
+      hospital_group: hospitalGroup,
+      county,
       application_deadline: deadline.toISOString(),
-      application_url: jobData.url,
-      job_spec_pdf_url: undefined, // Would need to visit detail page to get this
-      historical_centile_tier: hospitalTier,
-      source_url: sourceUrl,
+      application_url: url,
+      historical_centile_tier: getHospitalTier(hospitalName),
+      source_url: url || this.medicalJobsUrl,
       source_platform: 'ABOUT_HSE',
       scraped_at: new Date().toISOString(),
     };
   }
 
-  private findHospitalByCounty(county: string) {
-    return hospitals.find(h => h.county === county || h.location?.city === county);
+  /**
+   * Fallback: extract jobs from all links matching job URL pattern
+   */
+  private parseJobLinks($: cheerio.CheerioAPI): ScrapedJob[] {
+    const jobs: ScrapedJob[] = [];
+    const seen = new Set<string>();
+
+    $('a[href*="/jobs/job-search/"]').each((_, el) => {
+      const $a = $(el);
+      let href = $a.attr('href') || '';
+      if (!href || href === '/jobs/job-search/' || href.includes('?')) return;
+
+      if (!href.startsWith('http')) {
+        href = `https://about.hse.ie${href}`;
+      }
+
+      // Deduplicate by URL
+      if (seen.has(href)) return;
+      seen.add(href);
+
+      // Get title from link text or parent heading
+      const title = this.cleanText(
+        $a.text() || $a.closest('h2, h3, h4').text() || ''
+      );
+      if (!title || title.length < 5) return;
+
+      if (!this.isNCHDJob(title)) return;
+
+      // Find surrounding context for county/date
+      const parent = $a.closest('article, li, div, tr');
+      const contextText = parent.length ? parent.text() : '';
+      const county = inferCounty(`${title} ${contextText}`);
+
+      const postedDate = this.extractDate(contextText) || new Date();
+      const deadline = new Date(postedDate);
+      deadline.setDate(deadline.getDate() + 21);
+
+      const hospital = matchHospital(title) || matchHospitalByCounty(county);
+      const hospitalName = hospital?.name || 'HSE Facility';
+
+      jobs.push({
+        title,
+        grade: this.parseGrade(title),
+        specialty: this.parseSpecialty(title),
+        scheme_type: this.parseSchemeType(title),
+        hospital_name: hospitalName,
+        hospital_group: hospital?.hospitalGroup || 'IEHG',
+        county,
+        application_deadline: deadline.toISOString(),
+        application_url: href,
+        historical_centile_tier: getHospitalTier(hospitalName),
+        source_url: href,
+        source_platform: 'ABOUT_HSE',
+        scraped_at: new Date().toISOString(),
+      });
+    });
+
+    return jobs;
   }
 
   /**
-   * Fetch job details from individual job page
-   * Call this separately if you need PDF URLs and full details
+   * Check if a job title is relevant to NCHD roles
+   */
+  private isNCHDJob(title: string): boolean {
+    const lower = title.toLowerCase();
+
+    // Exclude non-doctor roles first
+    for (const exclude of EXCLUDE_KEYWORDS) {
+      if (lower.includes(exclude)) return false;
+    }
+
+    // Check for NCHD keywords
+    for (const keyword of NCHD_KEYWORDS) {
+      if (lower.includes(keyword)) return true;
+    }
+
+    // Also include if it mentions specific medical specialties without exclusions
+    const specialtyKeywords = [
+      'medicine', 'surgery', 'paediatric', 'psychiatry', 'anaesth',
+      'emergency', 'obstetric', 'gynaecol', 'radiology', 'pathology',
+    ];
+    for (const kw of specialtyKeywords) {
+      if (lower.includes(kw)) return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * Extract a date from text
+   */
+  private extractDate(text: string): Date | null {
+    // Pattern: "13 February 2026"
+    const match = text.match(
+      /(\d{1,2})\s+(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{4})/i
+    );
+    if (match) {
+      const date = new Date(`${match[2]} ${match[1]}, ${match[3]}`);
+      if (!isNaN(date.getTime())) return date;
+    }
+
+    // Pattern: "13/02/2026" or "13-02-2026"
+    const dmyMatch = text.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+    if (dmyMatch) {
+      const date = new Date(`${dmyMatch[3]}-${dmyMatch[2]}-${dmyMatch[1]}`);
+      if (!isNaN(date.getTime())) return date;
+    }
+
+    return null;
+  }
+
+  /**
+   * Fetch individual job detail page for additional info (PDF, email, etc.)
    */
   async fetchJobDetails(jobUrl: string): Promise<{
     pdfUrl?: string;
@@ -228,18 +327,24 @@ export class HSEScraper extends BaseScraper {
     clinicalLead?: string;
     rotationalDetail?: string;
     salaryRange?: string;
+    deadline?: string;
   }> {
     try {
-      const response = await fetch(jobUrl);
-      const html = await response.text();
+      const html = await this.fetchPage(jobUrl);
+      if (!html) return {};
+
+      const $ = cheerio.load(html);
+      const bodyText = $('body').text();
 
       return {
-        pdfUrl: this.extractPdfUrl(html),
-        informalEnquiriesEmail: this.extractEmail(html),
-        informalEnquiriesName: this.extractContactName(html),
-        clinicalLead: this.extractClinicalLead(html),
-        rotationalDetail: this.extractRotationalDetail(html),
-        salaryRange: this.extractSalaryRange(html),
+        pdfUrl: this.extractPdfUrl($),
+        informalEnquiriesEmail: this.extractEmail(bodyText),
+        informalEnquiriesName: this.extractContactName(bodyText),
+        clinicalLead: this.extractField(bodyText, /clinical lead:?\s*(.+)/i),
+        rotationalDetail: this.extractField(bodyText, /rotation:?\s*(.+)/i),
+        salaryRange: this.extractSalary(bodyText),
+        deadline: this.extractField(bodyText, /closing date:?\s*(.+)/i) ||
+                  this.extractField(bodyText, /deadline:?\s*(.+)/i),
       };
     } catch (error) {
       console.error('Error fetching job details:', error);
@@ -247,34 +352,30 @@ export class HSEScraper extends BaseScraper {
     }
   }
 
-  private extractPdfUrl(html: string): string | undefined {
-    const pdfMatch = html.match(/href="([^"]*\.pdf[^"]*)"/i);
-    return pdfMatch ? pdfMatch[1] : undefined;
+  private extractPdfUrl($: cheerio.CheerioAPI): string | undefined {
+    const pdfLink = $('a[href$=".pdf"]').first();
+    const href = pdfLink.attr('href');
+    if (!href) return undefined;
+    return href.startsWith('http') ? href : `https://about.hse.ie${href}`;
   }
 
-  private extractEmail(html: string): string | undefined {
-    const emailMatch = html.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/);
-    return emailMatch ? emailMatch[1] : undefined;
+  private extractEmail(text: string): string | undefined {
+    const match = text.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/);
+    return match ? match[1] : undefined;
   }
 
-  private extractContactName(html: string): string | undefined {
-    // Look for patterns like "Dr. Name" or "Contact: Name"
-    const nameMatch = html.match(/(?:Dr\.?|Contact:)\s+([A-Z][a-z]+\s+[A-Z][a-z]+)/);
-    return nameMatch ? nameMatch[1] : undefined;
+  private extractContactName(text: string): string | undefined {
+    const match = text.match(/(?:Dr\.?|Contact:?|Enquiries:?)\s+([A-Z][a-z]+\s+[A-Z][a-z]+)/);
+    return match ? match[1] : undefined;
   }
 
-  private extractClinicalLead(html: string): string | undefined {
-    const leadMatch = html.match(/Clinical Lead:?\s*([A-Z][a-z]+\s+[A-Z][a-z]+)/i);
-    return leadMatch ? leadMatch[1] : undefined;
+  private extractField(text: string, pattern: RegExp): string | undefined {
+    const match = text.match(pattern);
+    return match ? this.cleanText(match[1]) : undefined;
   }
 
-  private extractRotationalDetail(html: string): string | undefined {
-    const rotationMatch = html.match(/Rotation:?\s*([^<\n]+)/i);
-    return rotationMatch ? this.cleanText(rotationMatch[1]) : undefined;
-  }
-
-  private extractSalaryRange(html: string): string | undefined {
-    const salaryMatch = html.match(/€([\d,]+)\s*-\s*€([\d,]+)/);
-    return salaryMatch ? `€${salaryMatch[1]} - €${salaryMatch[2]}` : undefined;
+  private extractSalary(text: string): string | undefined {
+    const match = text.match(/€([\d,]+)\s*[-–]\s*€([\d,]+)/);
+    return match ? `€${match[1]} - €${match[2]}` : undefined;
   }
 }

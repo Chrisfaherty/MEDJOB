@@ -82,7 +82,7 @@ export interface Job {
   historical_centile_tier?: HospitalTier;
 
   // Source
-  source: 'NRS' | 'REZOOMO' | 'DIRECT_HOSPITAL';
+  source: 'NRS' | 'REZOOMO' | 'HEALTHCARE_JOBS' | 'DIRECT_HOSPITAL';
   external_id?: string;
 
   // Metadata

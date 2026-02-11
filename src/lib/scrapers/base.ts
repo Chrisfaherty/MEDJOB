@@ -27,7 +27,7 @@ export interface ScrapedJob {
   on_call?: boolean;
   historical_centile_tier?: HospitalTier;
   source_url: string;
-  source_platform: 'HSE_NRS' | 'REZOOMO' | 'ABOUT_HSE' | 'GLOBAL_MEDICS' | 'DOCTOR_JOBS' | 'IRISH_JOBS' | 'DIRECT_HOSPITAL';
+  source_platform: 'HSE_NRS' | 'REZOOMO' | 'ABOUT_HSE' | 'HEALTHCARE_JOBS' | 'GLOBAL_MEDICS' | 'DOCTOR_JOBS' | 'IRISH_JOBS' | 'DIRECT_HOSPITAL';
   scraped_at: string;
 }
 

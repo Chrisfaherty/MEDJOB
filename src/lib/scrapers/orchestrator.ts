@@ -4,7 +4,8 @@
  */
 
 import { HSEScraper } from './hse';
-import type { ScrapedJob, ScraperResult } from './base';
+import { HealthcareJobsScraper } from './healthcarejobs';
+import { BaseScraper, type ScrapedJob, type ScraperResult } from './base';
 import type { Job } from '@/types/database.types';
 import { supabase } from '@/lib/supabase';
 
@@ -20,14 +21,34 @@ export interface OrchestrationResult {
 }
 
 export class ScraperOrchestrator {
-  private scrapers: Map<string, any> = new Map();
+  private scrapers: Map<string, BaseScraper> = new Map();
 
   constructor() {
-    // Register all available scrapers
+    // Register fetch-based scrapers (work on Vercel)
     this.scrapers.set('HSE', new HSEScraper());
-    // Add more scrapers as they're built:
-    // this.scrapers.set('Rezoomo', new RezoomoScraper());
-    // this.scrapers.set('GlobalMedics', new GlobalMedicsScraper());
+    this.scrapers.set('HealthcareJobs', new HealthcareJobsScraper());
+
+    // Playwright scrapers are registered conditionally via registerPlaywrightScrapers()
+    // They only work in GitHub Actions, not on Vercel
+  }
+
+  /**
+   * Register Playwright-based scrapers (call this only in GitHub Actions environment)
+   */
+  async registerPlaywrightScrapers(): Promise<void> {
+    try {
+      const { RezoomoScraper } = await import('./rezoomo');
+      const { IrishJobsScraper } = await import('./irishjobs');
+      const { DoctorJobsScraper } = await import('./doctorjobs');
+
+      this.scrapers.set('Rezoomo', new RezoomoScraper());
+      this.scrapers.set('IrishJobs', new IrishJobsScraper());
+      this.scrapers.set('DoctorJobs', new DoctorJobsScraper());
+
+      console.log('Playwright scrapers registered successfully');
+    } catch (error) {
+      console.warn('Playwright scrapers not available:', (error as Error).message);
+    }
   }
 
   /**
@@ -52,7 +73,14 @@ export class ScraperOrchestrator {
     for (const [name, scraper] of this.scrapers.entries()) {
       try {
         console.log(`Running ${name} scraper...`);
-        const result: ScraperResult = await scraper.scrape();
+
+        // Per-scraper timeout of 120 seconds
+        const result: ScraperResult = await Promise.race([
+          scraper.scrape(),
+          new Promise<ScraperResult>((_, reject) =>
+            setTimeout(() => reject(new Error(`${name} scraper timed out after 120s`)), 120000)
+          ),
+        ]);
 
         results.scrapers_run.push(name);
         results.total_jobs_scraped += result.job_count;
@@ -91,22 +119,29 @@ export class ScraperOrchestrator {
   async scrapeSingle(scraperName: string): Promise<ScraperResult> {
     const scraper = this.scrapers.get(scraperName);
     if (!scraper) {
-      throw new Error(`Scraper "${scraperName}" not found`);
+      throw new Error(`Scraper "${scraperName}" not found. Available: ${Array.from(this.scrapers.keys()).join(', ')}`);
     }
 
     return await scraper.scrape();
   }
 
   /**
-   * Deduplicate jobs based on title, hospital, and deadline
+   * Deduplicate jobs based on normalized title, hospital, and deadline
    */
   private deduplicateJobs(jobs: ScrapedJob[]): ScrapedJob[] {
     const seen = new Set<string>();
     const unique: ScrapedJob[] = [];
 
     for (const job of jobs) {
-      // Create a unique key combining title, hospital, and deadline
-      const key = `${job.title.toLowerCase()}|${job.hospital_name.toLowerCase()}|${job.application_deadline}`;
+      // Normalize: strip ref codes, lowercase, trim whitespace
+      const normalizedTitle = job.title
+        .toLowerCase()
+        .replace(/[A-Z]{2}\d{2}[A-Z]{2}\d{2}/gi, '') // Remove ref codes like MW26KR10
+        .replace(/ref:?\s*\S+/gi, '')                  // Remove "ref: XYZ"
+        .replace(/\s+/g, ' ')
+        .trim();
+
+      const key = `${normalizedTitle}|${job.hospital_name.toLowerCase()}|${job.application_deadline.substring(0, 10)}`;
 
       if (!seen.has(key)) {
         seen.add(key);
@@ -119,15 +154,12 @@ export class ScraperOrchestrator {
 
   /**
    * Save scraped jobs to storage
-   * This can be adapted to use Supabase or localStorage depending on configuration
    */
   private async saveJobs(jobs: ScrapedJob[]): Promise<number> {
     try {
-      // Check if we're in browser environment
       if (typeof window !== 'undefined') {
         return this.saveToLocalStorage(jobs);
       } else {
-        // Server-side: save to Supabase
         return this.saveToSupabase(jobs);
       }
     } catch (error) {
@@ -140,13 +172,11 @@ export class ScraperOrchestrator {
    * Save to browser localStorage
    */
   private saveToLocalStorage(jobs: ScrapedJob[]): number {
-    const STORAGE_KEY = 'medjob_jobs'; // FIXED: Use the same key as the main app
+    const STORAGE_KEY = 'medjob_jobs';
 
-    // Get existing jobs
     const existingData = localStorage.getItem(STORAGE_KEY);
     const existingJobs: Job[] = existingData ? JSON.parse(existingData) : [];
 
-    // Convert ScrapedJob to Job format
     const convertedJobs: Job[] = jobs.map((scrapedJob, index) => ({
       id: `scraped_${Date.now()}_${index}`,
       title: scrapedJob.title,
@@ -158,7 +188,7 @@ export class ScraperOrchestrator {
       hospital_group: scrapedJob.hospital_group,
       county: scrapedJob.county,
       start_date: this.calculateStartDate(scrapedJob.application_deadline),
-      duration_months: 6, // Default assumption
+      duration_months: 6,
       rotational_detail: scrapedJob.rotational_detail,
       contract_type: scrapedJob.scheme_type.includes('TRAINING') ? 'Training' : 'Specified Purpose',
       application_deadline: scrapedJob.application_deadline,
@@ -178,7 +208,7 @@ export class ScraperOrchestrator {
       last_scraped_at: scrapedJob.scraped_at,
     }));
 
-    // Merge new jobs with existing (deduplicate by title + hospital + deadline)
+    // Merge and deduplicate
     const allJobs = [...existingJobs, ...convertedJobs];
     const seen = new Set<string>();
     const uniqueJobs: Job[] = [];
@@ -191,42 +221,26 @@ export class ScraperOrchestrator {
       }
     }
 
-    // Save back to localStorage
     localStorage.setItem(STORAGE_KEY, JSON.stringify(uniqueJobs));
-
     return convertedJobs.length;
   }
 
-  /**
-   * Calculate probable start date based on deadline
-   * Most Irish NCHD roles start in July or January
-   */
   private calculateStartDate(deadline: string): string {
     const deadlineDate = new Date(deadline);
     const year = deadlineDate.getFullYear();
     const month = deadlineDate.getMonth();
 
-    // If deadline is before June, assume July start
-    // If deadline is after June, assume January next year start
     if (month < 6) {
-      return `${year}-07-13`; // July rotation
+      return `${year}-07-13`;
     } else {
-      return `${year + 1}-01-13`; // January rotation
+      return `${year + 1}-01-13`;
     }
   }
 
-  /**
-   * Map source platform to Job source type
-   */
-  private mapSourcePlatform(
-    platform: ScrapedJob['source_platform']
-  ): Job['source'] {
-    if (platform === 'HSE_NRS' || platform === 'ABOUT_HSE') {
-      return 'NRS';
-    }
-    if (platform === 'REZOOMO') {
-      return 'REZOOMO';
-    }
+  private mapSourcePlatform(platform: ScrapedJob['source_platform']): Job['source'] {
+    if (platform === 'HSE_NRS' || platform === 'ABOUT_HSE') return 'NRS';
+    if (platform === 'REZOOMO') return 'REZOOMO';
+    if (platform === 'HEALTHCARE_JOBS') return 'HEALTHCARE_JOBS';
     return 'DIRECT_HOSPITAL';
   }
 
@@ -235,8 +249,7 @@ export class ScraperOrchestrator {
    */
   private async saveToSupabase(jobs: ScrapedJob[]): Promise<number> {
     try {
-      // Convert ScrapedJob to Job format
-      const convertedJobs: Partial<Job>[] = jobs.map((scrapedJob, index) => ({
+      const convertedJobs: Partial<Job>[] = jobs.map((scrapedJob) => ({
         title: scrapedJob.title,
         grade: scrapedJob.grade,
         specialty: scrapedJob.specialty,
@@ -246,7 +259,7 @@ export class ScraperOrchestrator {
         hospital_group: scrapedJob.hospital_group,
         county: scrapedJob.county,
         start_date: this.calculateStartDate(scrapedJob.application_deadline),
-        duration_months: 6, // Default assumption
+        duration_months: 6,
         rotational_detail: scrapedJob.rotational_detail,
         contract_type: scrapedJob.scheme_type.includes('TRAINING') ? 'Training' : 'Specified Purpose',
         application_deadline: scrapedJob.application_deadline,
@@ -259,42 +272,48 @@ export class ScraperOrchestrator {
         clinical_lead: scrapedJob.clinical_lead,
         historical_centile_tier: scrapedJob.historical_centile_tier,
         source: this.mapSourcePlatform(scrapedJob.source_platform),
-        external_id: `${scrapedJob.source_platform}_${scrapedJob.title.substring(0, 20)}_${scrapedJob.application_deadline}`,
+        external_id: `${scrapedJob.source_platform}_${scrapedJob.title.substring(0, 20)}_${scrapedJob.application_deadline.substring(0, 10)}`,
         is_active: true,
         last_scraped_at: scrapedJob.scraped_at,
       }));
 
-      // Use upsert to handle duplicates at database level
-      // The unique constraint on (title, hospital_name, application_deadline) handles deduplication
-      const { data, error } = await supabase
-        .from('jobs')
-        .upsert(convertedJobs, {
-          onConflict: 'title,hospital_name,application_deadline',
-          ignoreDuplicates: false, // Update existing records
-        })
-        .select();
+      // Upsert in batches of 50 to avoid payload limits
+      let totalSaved = 0;
+      const batchSize = 50;
 
-      if (error) {
-        console.error('Error upserting jobs to Supabase:', error);
-        throw error;
+      for (let i = 0; i < convertedJobs.length; i += batchSize) {
+        const batch = convertedJobs.slice(i, i + batchSize);
+
+        const { data, error } = await supabase
+          .from('jobs')
+          .upsert(batch, {
+            onConflict: 'title,hospital_name,application_deadline',
+            ignoreDuplicates: false,
+          })
+          .select();
+
+        if (error) {
+          console.error(`Error upserting batch ${i / batchSize + 1}:`, error);
+          // Continue with other batches
+        } else {
+          totalSaved += data?.length || 0;
+        }
       }
 
-      const savedCount = data?.length || 0;
-      console.log(`Successfully saved ${savedCount} jobs to Supabase`);
+      console.log(`Successfully saved ${totalSaved} jobs to Supabase`);
 
-      // Log scraping operation
+      // Log the scraping operation
       await this.logScrapingOperation(
         jobs.length,
-        savedCount,
+        totalSaved,
         'SUCCESS',
         null
       );
 
-      return savedCount;
+      return totalSaved;
     } catch (error) {
       console.error('Failed to save to Supabase:', error);
 
-      // Log error
       await this.logScrapingOperation(
         jobs.length,
         0,
@@ -302,7 +321,6 @@ export class ScraperOrchestrator {
         (error as Error).message
       );
 
-      // Fall back to localStorage if Supabase fails
       if (typeof window !== 'undefined') {
         console.log('Falling back to localStorage');
         return this.saveToLocalStorage(jobs);
@@ -311,9 +329,6 @@ export class ScraperOrchestrator {
     }
   }
 
-  /**
-   * Log scraping operation to database
-   */
   private async logScrapingOperation(
     jobsFound: number,
     jobsSaved: number,
@@ -321,8 +336,9 @@ export class ScraperOrchestrator {
     errorMessage: string | null
   ) {
     try {
+      const scrapersRun = Array.from(this.scrapers.keys()).join(', ');
       await supabase.from('scraping_logs').insert({
-        source: 'HSE', // Could be dynamic based on scraper
+        source: scrapersRun,
         status,
         jobs_found: jobsFound,
         jobs_new: jobsSaved,
@@ -330,28 +346,21 @@ export class ScraperOrchestrator {
         error_message: errorMessage,
         started_at: new Date().toISOString(),
         completed_at: new Date().toISOString(),
-        duration_seconds: 0, // Could calculate actual duration
+        duration_seconds: 0,
       });
     } catch (error) {
       console.error('Error logging scraping operation:', error);
-      // Don't throw - logging failure shouldn't stop scraping
     }
   }
 
-  /**
-   * Get statistics about available scrapers
-   */
   getScraperInfo(): Array<{ name: string; platform: string }> {
     return Array.from(this.scrapers.entries()).map(([name, scraper]) => ({
       name,
-      platform: scraper.platformName || 'Unknown',
+      platform: (scraper as any).platformName || 'Unknown',
     }));
   }
 }
 
-/**
- * Singleton instance
- */
 let orchestratorInstance: ScraperOrchestrator | null = null;
 
 export function getOrchestrator(): ScraperOrchestrator {
