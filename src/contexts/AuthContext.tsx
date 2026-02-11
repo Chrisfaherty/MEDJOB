@@ -25,10 +25,19 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isDemoUser, setIsDemoUser] = useState(false);
   const useSupabase = isSupabaseAuthConfigured();
 
   useEffect(() => {
     if (useSupabase) {
+      // Check if there's already a demo user in localStorage
+      const localUser = localUserAPI.getCurrentUser();
+      if (localUser) {
+        setUser(localUser);
+        setIsDemoUser(true);
+        setLoading(false);
+        return;
+      }
       // Supabase authentication
       initializeSupabaseAuth();
     } else {
@@ -47,8 +56,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setLoading(false);
       }
 
-      // Listen for auth changes
+      // Listen for auth changes (only affects Supabase-authenticated users)
       const subscription = authService.onAuthStateChange(async (authUser) => {
+        // Don't override demo/localStorage user state
+        if (isDemoUser) return;
+
         if (authUser) {
           await loadUserProfile();
         } else {
@@ -90,10 +102,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (useSupabase && password) {
       // Full Supabase authentication with password
       await authService.signIn(email, password);
+      setIsDemoUser(false);
       await loadUserProfile();
     } else {
       // localStorage login (demo mode or no password provided)
       const user = await localUserAPI.login(email);
+      setIsDemoUser(true);
       setUser(user);
     }
   };
@@ -111,13 +125,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
-    if (useSupabase) {
+    if (useSupabase && !isDemoUser) {
       await authService.signOut();
-      setUser(null);
-    } else {
-      localUserAPI.logout();
-      setUser(null);
     }
+    // Always clear localStorage user state
+    localUserAPI.logout();
+    setIsDemoUser(false);
+    setUser(null);
   };
 
   const signInWithMagicLink = async (email: string) => {
