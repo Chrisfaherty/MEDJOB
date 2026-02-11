@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 
-export default function AuthCallback() {
+function AuthCallbackInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [error, setError] = useState('');
@@ -23,7 +23,6 @@ export default function AuthCallback() {
           }
         } else {
           // Implicit flow fallback: token in hash fragment
-          // Supabase auto-detects hash tokens via getSession
           const { error } = await supabase.auth.getSession();
           if (error) {
             console.error('Auth callback error:', error);
@@ -36,7 +35,6 @@ export default function AuthCallback() {
         setError((err as Error).message);
         return;
       }
-      // Redirect to home
       router.replace('/');
     };
 
@@ -66,5 +64,22 @@ export default function AuthCallback() {
         <p className="text-slate-600">Completing sign in...</p>
       </div>
     </div>
+  );
+}
+
+export default function AuthCallback() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-slate-50">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-slate-600">Completing sign in...</p>
+          </div>
+        </div>
+      }
+    >
+      <AuthCallbackInner />
+    </Suspense>
   );
 }
