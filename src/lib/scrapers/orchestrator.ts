@@ -38,12 +38,11 @@ export class ScraperOrchestrator {
   async registerPlaywrightScrapers(): Promise<void> {
     try {
       const { RezoomoScraper } = await import('./rezoomo');
-      const { IrishJobsScraper } = await import('./irishjobs');
       const { DoctorJobsScraper } = await import('./doctorjobs');
 
       this.scrapers.set('Rezoomo', new RezoomoScraper());
-      this.scrapers.set('IrishJobs', new IrishJobsScraper());
       this.scrapers.set('DoctorJobs', new DoctorJobsScraper());
+      // IrishJobs.ie removed — site blocks all automated connections (ECONNREFUSED)
 
       console.log('Playwright scrapers registered successfully');
     } catch (error) {

@@ -22,6 +22,7 @@ export class DoctorJobsScraper extends PlaywrightBaseScraper {
     // Main search pages
     const searchUrls = [
       'https://www.doctorjobs.ie/jobs/nchd-doctors/',
+      'https://www.doctorjobs.ie/disciplines/nchd-doctors',
       'https://www.doctorjobs.ie/jobs/',
     ];
 

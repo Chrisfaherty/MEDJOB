@@ -23,22 +23,37 @@ const REZOOMO_SOURCES = [
   {
     name: 'CHI',
     url: 'https://www.rezoomo.com/company/childrens-health-ireland/jobs/',
-    hospitalId: 'mater',
+    hospitalId: 'chi',
   },
   {
     name: 'Mater Hospital',
-    url: 'https://www.rezoomo.com/company/mater-misericordiae-university-hospital/jobs/',
+    url: 'https://www.rezoomo.com/company/mater-hospital/jobs/',
     hospitalId: 'mater',
   },
   {
-    name: 'Saolta',
-    url: 'https://www.rezoomo.com/company/saolta-university-health-care-group/jobs/',
+    name: 'HSE South',
+    url: 'https://www.rezoomo.com/company/hse-south/jobs/',
+    hospitalId: 'cuh',
+  },
+  {
+    name: 'HSE Mid West',
+    url: 'https://www.rezoomo.com/company/hse-mid-west/jobs/',
+    hospitalId: 'ulh',
+  },
+  {
+    name: 'HSE Dublin North East',
+    url: 'https://www.rezoomo.com/company/hse-community-healthcare-dublin-north-city-and-county/jobs/',
+    hospitalId: 'beaumont',
+  },
+  {
+    name: 'HSE West',
+    url: 'https://www.rezoomo.com/company/community-healthcare-west/jobs/',
     hospitalId: 'uhg',
   },
   {
-    name: 'RCSI Hospitals',
-    url: 'https://www.rezoomo.com/company/rcsi-hospital-group/jobs/',
-    hospitalId: 'beaumont',
+    name: 'National Maternity Hospital',
+    url: 'https://www.rezoomo.com/company/the-national-maternity-hospital/jobs/',
+    hospitalId: 'nmh',
   },
   {
     name: 'Ireland East',
