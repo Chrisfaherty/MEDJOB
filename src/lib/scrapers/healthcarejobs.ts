@@ -10,7 +10,12 @@ import { matchHospital, matchHospitalByCounty, inferCounty } from './hospital-ma
 import { getHospitalTier } from '@/lib/matchProbability';
 
 export class HealthcareJobsScraper extends BaseScraper {
-  private readonly searchUrl = 'https://www.healthcarejobs.ie/jobs/medical/';
+  private readonly searchUrls = [
+    'https://www.healthcarejobs.ie/jobs?query=registrar',
+    'https://www.healthcarejobs.ie/jobs?query=SHO+doctor',
+    'https://www.healthcarejobs.ie/jobs?query=NCHD',
+    'https://www.healthcarejobs.ie/jobs?query=intern+doctor',
+  ];
 
   constructor() {
     super('https://www.healthcarejobs.ie', 'HEALTHCARE_JOBS');
@@ -18,25 +23,37 @@ export class HealthcareJobsScraper extends BaseScraper {
 
   async scrape(): Promise<ScraperResult> {
     try {
-      const jobs: ScrapedJob[] = [];
-      let page = 1;
-      let hasMore = true;
+      const allJobs: ScrapedJob[] = [];
 
-      while (hasMore && page <= 10) {
-        const url = page === 1 ? this.searchUrl : `${this.searchUrl}?page=${page}`;
-        const html = await this.fetchPage(url);
-        if (!html) break;
+      for (const searchUrl of this.searchUrls) {
+        let page = 1;
+        let hasMore = true;
 
-        const pageJobs = this.parseListingPage(html);
-        if (pageJobs.length === 0) {
-          hasMore = false;
-        } else {
-          jobs.push(...pageJobs);
-          console.log(`HealthcareJobs page ${page}: ${pageJobs.length} jobs (${jobs.length} total)`);
-          page++;
-          await delay(2000);
+        while (hasMore && page <= 5) {
+          const url = page === 1 ? searchUrl : `${searchUrl}&page=${page}`;
+          const html = await this.fetchPage(url);
+          if (!html) break;
+
+          const pageJobs = this.parseListingPage(html);
+          if (pageJobs.length === 0) {
+            hasMore = false;
+          } else {
+            allJobs.push(...pageJobs);
+            console.log(`HealthcareJobs "${new URL(searchUrl).searchParams.get('query')}" page ${page}: ${pageJobs.length} jobs`);
+            page++;
+            await delay(2000);
+          }
         }
       }
+
+      // Deduplicate by title+hospital
+      const seen = new Set<string>();
+      const jobs = allJobs.filter(j => {
+        const key = `${j.title.toLowerCase()}|${j.hospital_name.toLowerCase()}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
 
       console.log(`HealthcareJobs scraper complete: ${jobs.length} NCHD jobs found`);
       return this.createResult(jobs);
@@ -86,7 +103,7 @@ export class HealthcareJobsScraper extends BaseScraper {
       $('a[href*="/job/"], a[href*="/vacancy/"], a[href*="/jobs/"]').each((_, el) => {
         const $a = $(el);
         const href = $a.attr('href') || '';
-        if (!href || href === this.searchUrl) return;
+        if (!href || href === '/jobs') return;
 
         const title = this.cleanText($a.text());
         if (!title || title.length < 5 || !this.isNCHDJob(title)) return;
@@ -150,7 +167,7 @@ export class HealthcareJobsScraper extends BaseScraper {
       application_deadline: deadline,
       application_url: url,
       historical_centile_tier: getHospitalTier(hospitalName),
-      source_url: url || this.searchUrl,
+      source_url: url || this.searchUrls[0],
       source_platform: 'HEALTHCARE_JOBS',
       scraped_at: new Date().toISOString(),
     };

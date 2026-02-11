@@ -7,7 +7,7 @@ import { HSEScraper } from './hse';
 import { HealthcareJobsScraper } from './healthcarejobs';
 import { BaseScraper, type ScrapedJob, type ScraperResult } from './base';
 import type { Job } from '@/types/database.types';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
 
 export interface OrchestrationResult {
   total_jobs_scraped: number;
@@ -240,7 +240,7 @@ export class ScraperOrchestrator {
   private mapSourcePlatform(platform: ScrapedJob['source_platform']): Job['source'] {
     if (platform === 'HSE_NRS' || platform === 'ABOUT_HSE') return 'NRS';
     if (platform === 'REZOOMO') return 'REZOOMO';
-    if (platform === 'HEALTHCARE_JOBS') return 'HEALTHCARE_JOBS';
+    if (platform === 'HEALTHCARE_JOBS') return 'DIRECT_HOSPITAL'; // DB constraint doesn't include HEALTHCARE_JOBS yet
     return 'DIRECT_HOSPITAL';
   }
 
@@ -277,6 +277,8 @@ export class ScraperOrchestrator {
         last_scraped_at: scrapedJob.scraped_at,
       }));
 
+      console.log(`Saving ${convertedJobs.length} jobs to Supabase...`);
+
       // Upsert in batches of 50 to avoid payload limits
       let totalSaved = 0;
       const batchSize = 50;
@@ -284,7 +286,7 @@ export class ScraperOrchestrator {
       for (let i = 0; i < convertedJobs.length; i += batchSize) {
         const batch = convertedJobs.slice(i, i + batchSize);
 
-        const { data, error } = await supabase
+        const { data, error } = await supabaseAdmin
           .from('jobs')
           .upsert(batch, {
             onConflict: 'title,hospital_name,application_deadline',
@@ -337,7 +339,7 @@ export class ScraperOrchestrator {
   ) {
     try {
       const scrapersRun = Array.from(this.scrapers.keys()).join(', ');
-      await supabase.from('scraping_logs').insert({
+      await supabaseAdmin.from('scraping_logs').insert({
         source: scrapersRun,
         status,
         jobs_found: jobsFound,
