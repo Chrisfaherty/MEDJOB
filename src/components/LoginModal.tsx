@@ -300,7 +300,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                 disabled={loading}
                 className="w-full py-3 border border-slate-200 text-slate-700 font-medium rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50"
               >
-                Try Demo Account
+                DEMO ACCOUNT
               </button>
             </>
           )}
