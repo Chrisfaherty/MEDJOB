@@ -10,6 +10,9 @@ import { getOrchestrator } from '../src/lib/scrapers/orchestrator';
 async function main() {
   console.log('=== Playwright Scrapers Runner ===');
   console.log(`Started at: ${new Date().toISOString()}`);
+  console.log(`Supabase URL configured: ${!!process.env.NEXT_PUBLIC_SUPABASE_URL}`);
+  console.log(`Supabase anon key configured: ${!!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`);
+  console.log(`Supabase service key configured: ${!!process.env.SUPABASE_SERVICE_ROLE_KEY}`);
   console.log('');
 
   const orchestrator = getOrchestrator();

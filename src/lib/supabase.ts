@@ -9,12 +9,22 @@ import type { Job, UserApplication, ApplicationStatus } from '@/types/database.t
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Guard against empty URL (build time, missing env vars)
+function createSupabaseClient(url: string, key: string) {
+  if (!url || !key) {
+    console.warn('Supabase credentials missing — client will not work');
+    // Return a dummy proxy that won't crash on access but will fail on actual calls
+    return null as unknown as ReturnType<typeof createClient>;
+  }
+  return createClient(url, key);
+}
+
+export const supabase = createSupabaseClient(supabaseUrl, supabaseAnonKey);
 
 // Service role client for server-side operations (bypasses RLS)
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 export const supabaseAdmin = supabaseServiceKey
-  ? createClient(supabaseUrl, supabaseServiceKey)
+  ? createSupabaseClient(supabaseUrl, supabaseServiceKey)
   : supabase;
 
 // =====================================================
