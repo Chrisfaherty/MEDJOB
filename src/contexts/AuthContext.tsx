@@ -5,7 +5,7 @@
  * Provides authentication state and methods to all components
  */
 
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { authService, isSupabaseAuthConfigured } from '@/lib/auth';
 import { localUserAPI, type User } from '@/lib/localStorage';
 
@@ -25,30 +25,28 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isDemoUser, setIsDemoUser] = useState(false);
+  const isDemoRef = useRef(false);
   const useSupabase = isSupabaseAuthConfigured();
 
   useEffect(() => {
+    // Always check localStorage first for a demo/local user
+    const localUser = localUserAPI.getCurrentUser();
+    if (localUser) {
+      setUser(localUser);
+      isDemoRef.current = true;
+      setLoading(false);
+      return;
+    }
+
     if (useSupabase) {
-      // Check if there's already a demo user in localStorage
-      const localUser = localUserAPI.getCurrentUser();
-      if (localUser) {
-        setUser(localUser);
-        setIsDemoUser(true);
-        setLoading(false);
-        return;
-      }
-      // Supabase authentication
       initializeSupabaseAuth();
     } else {
-      // localStorage fallback (existing behavior)
-      initializeLocalAuth();
+      setLoading(false);
     }
   }, [useSupabase]);
 
   const initializeSupabaseAuth = async () => {
     try {
-      // Check active session
       const session = await authService.getSession();
       if (session) {
         await loadUserProfile();
@@ -56,10 +54,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setLoading(false);
       }
 
-      // Listen for auth changes (only affects Supabase-authenticated users)
-      const subscription = authService.onAuthStateChange(async (authUser) => {
-        // Don't override demo/localStorage user state
-        if (isDemoUser) return;
+      // Listen for Supabase auth changes
+      authService.onAuthStateChange(async (authUser) => {
+        // Never override a demo/localStorage user
+        if (isDemoRef.current) return;
 
         if (authUser) {
           await loadUserProfile();
@@ -68,22 +66,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setLoading(false);
         }
       });
-
-      // Cleanup subscription on unmount
-      return () => {
-        subscription.unsubscribe();
-      };
     } catch (error) {
       console.error('Error initializing Supabase auth:', error);
       setLoading(false);
     }
-  };
-
-  const initializeLocalAuth = () => {
-    // Use existing localStorage auth
-    const localUser = localUserAPI.getCurrentUser();
-    setUser(localUser);
-    setLoading(false);
   };
 
   const loadUserProfile = async () => {
@@ -100,56 +86,65 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signIn = async (email: string, password?: string) => {
     if (useSupabase && password) {
-      // Full Supabase authentication with password
       await authService.signIn(email, password);
-      setIsDemoUser(false);
+      isDemoRef.current = false;
       await loadUserProfile();
     } else {
-      // localStorage login (demo mode or no password provided)
+      // Demo / localStorage login
       const user = await localUserAPI.login(email);
-      setIsDemoUser(true);
+      isDemoRef.current = true;
       setUser(user);
     }
   };
 
   const signUp = async (email: string, password: string, name: string) => {
     if (useSupabase) {
-      await authService.signUp(email, password, name);
-      // User will be logged in automatically after email confirmation
-      await loadUserProfile();
+      const result = await authService.signUp(email, password, name);
+      // Supabase may require email confirmation — log in as demo in the meantime
+      const session = await authService.getSession();
+      if (session) {
+        isDemoRef.current = false;
+        await loadUserProfile();
+      } else {
+        // No session yet (email confirmation pending) — use localStorage
+        const user = await localUserAPI.login(email);
+        isDemoRef.current = true;
+        setUser(user);
+      }
     } else {
-      // localStorage fallback - just login (no password)
       const user = await localUserAPI.login(email);
+      isDemoRef.current = true;
       setUser(user);
     }
   };
 
   const signOut = async () => {
-    if (useSupabase && !isDemoUser) {
-      await authService.signOut();
+    if (useSupabase && !isDemoRef.current) {
+      try {
+        await authService.signOut();
+      } catch (error) {
+        console.error('Supabase signOut error:', error);
+      }
     }
-    // Always clear localStorage user state
     localUserAPI.logout();
-    setIsDemoUser(false);
+    isDemoRef.current = false;
     setUser(null);
   };
 
   const signInWithMagicLink = async (email: string) => {
     if (useSupabase) {
       await authService.signInWithMagicLink(email);
-      // User will be redirected back after clicking magic link
     } else {
       throw new Error('Magic link is only available with Supabase');
     }
   };
 
   const updateProfile = async (updates: { name?: string; centile?: number }) => {
-    if (useSupabase) {
+    if (useSupabase && !isDemoRef.current) {
       await authService.updateUserProfile(updates);
       await loadUserProfile();
     } else {
-      // localStorage doesn't support profile updates yet
-      console.warn('Profile updates not supported with localStorage');
+      console.warn('Profile updates not supported in demo mode');
     }
   };
 
