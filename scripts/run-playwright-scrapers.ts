@@ -2,7 +2,7 @@
  * Script to run Playwright-based scrapers.
  * Executed by GitHub Actions workflow — not meant for Vercel deployment.
  *
- * Usage: npx tsx scripts/run-playwright-scrapers.ts
+ * Usage: npx tsx --tsconfig tsconfig.scripts.json scripts/run-playwright-scrapers.ts
  */
 
 import { getOrchestrator } from '../src/lib/scrapers/orchestrator';
@@ -39,7 +39,7 @@ async function main() {
   console.log('');
   console.log(`Completed at: ${new Date().toISOString()}`);
 
-  // Exit with error code if no jobs were saved
+  // Exit with error code if no jobs were saved AND no jobs scraped
   if (result.total_jobs_saved === 0 && result.total_jobs_scraped === 0) {
     console.error('No jobs scraped or saved — something is wrong');
     process.exit(1);

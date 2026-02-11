@@ -34,7 +34,7 @@ jobs:
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           ENABLE_PLAYWRIGHT_SCRAPERS: 'true'
-        run: npx tsx scripts/run-playwright-scrapers.ts
+        run: TS_NODE_PROJECT=tsconfig.scripts.json npx tsx -r tsconfig-paths/register scripts/run-playwright-scrapers.ts
 
       - name: Report results
         if: always()
