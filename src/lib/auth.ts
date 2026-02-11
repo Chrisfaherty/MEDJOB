@@ -103,6 +103,32 @@ export const authService = {
 
     if (error) {
       console.error('Error fetching user profile:', error);
+      // Profile missing (trigger may not have fired) — create it from auth metadata
+      if (error.code === 'PGRST116') {
+        const { data: newProfile, error: insertError } = await supabase
+          .from('user_profiles')
+          .insert({
+            id: user.id,
+            email: user.email || '',
+            name: user.user_metadata?.name || user.email?.split('@')[0] || 'User',
+            role: 'user',
+          })
+          .select()
+          .single();
+
+        if (insertError) {
+          console.error('Error creating user profile:', insertError);
+          return null;
+        }
+
+        return {
+          id: newProfile.id,
+          email: newProfile.email,
+          name: newProfile.name,
+          role: newProfile.role as 'admin' | 'user',
+          createdAt: newProfile.created_at,
+        };
+      }
       return null;
     }
 

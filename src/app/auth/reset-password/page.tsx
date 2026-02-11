@@ -1,13 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Lock, CheckCircle, AlertCircle } from 'lucide-react';
 import { authService } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 
 export default function ResetPassword() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -16,13 +17,26 @@ export default function ResetPassword() {
   const [sessionReady, setSessionReady] = useState(false);
 
   useEffect(() => {
-    // Supabase sets the session from the URL hash automatically
-    const checkSession = async () => {
+    const establishSession = async () => {
+      // PKCE flow: Supabase sends ?code=... query parameter
+      const code = searchParams.get('code');
+      if (code) {
+        const { error } = await supabase.auth.exchangeCodeForSession(code);
+        if (error) {
+          console.error('Code exchange error:', error);
+          setError('Invalid or expired reset link. Please request a new one.');
+          return;
+        }
+        setSessionReady(true);
+        return;
+      }
+
+      // Implicit flow fallback: token in hash fragment
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
         setSessionReady(true);
       } else {
-        // Listen for the session to be set
+        // Listen for the session to be set from hash
         const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
           if (event === 'PASSWORD_RECOVERY') {
             setSessionReady(true);
@@ -31,8 +45,8 @@ export default function ResetPassword() {
         return () => subscription.unsubscribe();
       }
     };
-    checkSession();
-  }, []);
+    establishSession();
+  }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -82,7 +96,20 @@ export default function ResetPassword() {
           <p className="text-sm text-slate-500 mt-1">Enter your new password below</p>
         </div>
 
-        {!sessionReady ? (
+        {error && !sessionReady ? (
+          <div className="text-center py-4">
+            <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0" />
+              <p className="text-sm text-red-800">{error}</p>
+            </div>
+            <button
+              onClick={() => router.replace('/')}
+              className="mt-4 text-blue-600 hover:underline text-sm"
+            >
+              Go to home page
+            </button>
+          </div>
+        ) : !sessionReady ? (
           <div className="text-center py-4">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-3"></div>
             <p className="text-slate-500 text-sm">Verifying reset link...</p>
