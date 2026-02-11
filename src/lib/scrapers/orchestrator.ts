@@ -240,7 +240,7 @@ export class ScraperOrchestrator {
   private mapSourcePlatform(platform: ScrapedJob['source_platform']): Job['source'] {
     if (platform === 'HSE_NRS' || platform === 'ABOUT_HSE') return 'NRS';
     if (platform === 'REZOOMO') return 'REZOOMO';
-    if (platform === 'HEALTHCARE_JOBS') return 'DIRECT_HOSPITAL'; // DB constraint doesn't include HEALTHCARE_JOBS yet
+    if (platform === 'HEALTHCARE_JOBS') return 'HEALTHCARE_JOBS';
     return 'DIRECT_HOSPITAL';
   }
 
