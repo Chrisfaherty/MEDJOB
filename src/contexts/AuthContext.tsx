@@ -87,14 +87,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signIn = async (email: string, password?: string) => {
-    if (useSupabase) {
-      if (!password) {
-        throw new Error('Password is required for Supabase authentication');
-      }
+    if (useSupabase && password) {
+      // Full Supabase authentication with password
       await authService.signIn(email, password);
       await loadUserProfile();
     } else {
-      // localStorage fallback
+      // localStorage login (demo mode or no password provided)
       const user = await localUserAPI.login(email);
       setUser(user);
     }
