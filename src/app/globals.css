@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #F9FAFB;
+  --foreground: #0F172A;
 }
 
 @theme inline {
@@ -11,12 +11,14 @@
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 
-  /* LinkedIn-inspired color palette */
-  --color-linkedin-blue: #0A66C2;
-  --color-linkedin-blue-dark: #004182;
-  --color-linkedin-blue-light: #378FE9;
+  /* HSE Teal — primary action color */
+  --color-teal: #007A7E;
+  --color-teal-dark: #005F62;
+  --color-teal-light: #00999E;
+  --color-teal-50: #EFFEFB;
+  --color-teal-100: #C6FFF5;
 
-  /* Slate colors */
+  /* Slate palette */
   --color-slate-50: #F8FAFC;
   --color-slate-100: #F1F5F9;
   --color-slate-200: #E2E8F0;
@@ -29,31 +31,56 @@
   --color-slate-900: #0F172A;
   --color-slate-950: #020617;
 
+  /* Badge colors */
+  --color-badge-grade: #475569;
+  --color-badge-specialty: #4A7C59;
+  --color-badge-match-green: #16A34A;
+  --color-badge-match-amber: #D97706;
+  --color-badge-match-red: #DC2626;
+
   /* Status colors */
   --color-status-applied: #10B981;
   --color-status-interview: #F59E0B;
   --color-status-shortlisted: #8B5CF6;
   --color-status-rejected: #EF4444;
 
-  /* Scheme colors */
-  --color-scheme-training: #3B82F6;
-  --color-scheme-non-training: #6B7280;
-
   /* Deadline urgency */
   --color-deadline-critical: #DC2626;
   --color-deadline-warning: #F59E0B;
   --color-deadline-normal: #10B981;
-}
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  /* Kept for backwards compat in admin pages */
+  --color-linkedin-blue: #007A7E;
+  --color-linkedin-blue-dark: #005F62;
+  --color-linkedin-blue-light: #00999E;
+  --color-scheme-training: #3B82F6;
+  --color-scheme-non-training: #6B7280;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), 'Inter', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Scrollbar styling */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 3px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #94A3B8;
+}
+
+/* Radix Tabs */
+[data-radix-tabs-content] {
+  outline: none;
 }

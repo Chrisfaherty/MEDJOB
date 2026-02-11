@@ -4,51 +4,37 @@ import { useState, useEffect } from 'react';
 import {
   Search,
   Filter,
-  Bell,
-  Calendar,
   TrendingUp,
   Briefcase,
   LogOut,
-  X,
-  CheckCircle2,
-  Mail,
-  ExternalLink,
-  FileText,
-  MapPin,
-  Building2,
-  Clock,
-  User as UserIcon,
+  ChevronLeft,
 } from 'lucide-react';
 import JobCard from '@/components/JobCard';
+import DetailView from '@/components/DetailView';
 import LoginModal from '@/components/LoginModal';
-import type { Job, ApplicationStatus, SpecialtyType, HospitalGroup, SchemeType } from '@/types/database.types';
+import type { Job, SpecialtyType, HospitalGroup, SchemeType } from '@/types/database.types';
 import {
   SPECIALTY_LABELS,
   HOSPITAL_GROUP_LABELS,
   SCHEME_TYPE_LABELS,
 } from '@/types/database.types';
 import { storageAPI, initializeLocalStorage } from '@/lib/localStorage';
-import { checkDeadlines } from '@/lib/deadlineNotifications';
-import { format, differenceInHours } from 'date-fns';
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function Dashboard() {
-  // Auth state from context
   const { user, loading: authLoading } = useAuth();
   const [showLoginModal, setShowLoginModal] = useState(false);
 
   // Data state
   const [jobs, setJobs] = useState<Job[]>([]);
-  const [applications, setApplications] = useState<Map<string, ApplicationStatus>>(new Map());
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [loading, setLoading] = useState(true);
 
   // UI state
   const [searchQuery, setSearchQuery] = useState('');
-  const [showSavedOnly, setShowSavedOnly] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
-  const [showNotifications, setShowNotifications] = useState(false);
+  const [userCentile, setUserCentile] = useState<number | undefined>();
 
   // Filter state
   const [filters, setFilters] = useState<{
@@ -63,16 +49,11 @@ export default function Dashboard() {
     schemeTypes: [],
   });
 
-  // User centile for match probability
-  const [userCentile, setUserCentile] = useState<number | undefined>();
-
-  // Initialize
   useEffect(() => {
     initializeLocalStorage();
     loadData();
   }, []);
 
-  // Show login modal if not authenticated (after auth loading completes)
   useEffect(() => {
     if (!authLoading && !user) {
       setShowLoginModal(true);
@@ -83,17 +64,9 @@ export default function Dashboard() {
     try {
       setLoading(true);
       const jobsData = await storageAPI.jobs.getActiveJobs();
-      const appsData = await storageAPI.applications.getUserApplications();
       const favoritesData = storageAPI.favorites.getFavorites();
-
       setJobs(jobsData);
-
-      const appsMap = new Map();
-      appsData.forEach(app => appsMap.set(app.job_id, app.status));
-      setApplications(appsMap);
-
       setFavorites(new Set(favoritesData));
-
       if (jobsData.length > 0) {
         setSelectedJob(jobsData[0]);
       }
@@ -110,11 +83,6 @@ export default function Dashboard() {
     setShowLoginModal(true);
   };
 
-  const handleStatusChange = async (jobId: string, status: ApplicationStatus) => {
-    await storageAPI.applications.updateStatus(jobId, status);
-    setApplications(prev => new Map(prev).set(jobId, status));
-  };
-
   const handleFavoriteToggle = async (jobId: string) => {
     const isFavorite = await storageAPI.favorites.toggleFavorite(jobId);
     setFavorites(prev => {
@@ -128,34 +96,20 @@ export default function Dashboard() {
     });
   };
 
-  const toggleFilter = (
-    filterKey: keyof typeof filters,
-    value: string
-  ) => {
+  const toggleFilter = (filterKey: keyof typeof filters, value: string) => {
     setFilters(prev => {
       const currentValues = prev[filterKey] as string[];
-      const isIncluded = currentValues.includes(value);
-      const newValues = isIncluded
+      const newValues = currentValues.includes(value)
         ? currentValues.filter((v: string) => v !== value)
         : [...currentValues, value];
-
-      return {
-        ...prev,
-        [filterKey]: newValues as any,
-      };
+      return { ...prev, [filterKey]: newValues as any };
     });
   };
 
   const clearFilters = () => {
-    setFilters({
-      specialties: [],
-      hospitalGroups: [],
-      counties: [],
-      schemeTypes: [],
-    });
+    setFilters({ specialties: [], hospitalGroups: [], counties: [], schemeTypes: [] });
   };
 
-  // Get unique values for filters
   const uniqueSpecialties = Array.from(new Set(jobs.map(j => j.specialty)));
   const uniqueHospitalGroups = Array.from(new Set(jobs.map(j => j.hospital_group)));
   const uniqueCounties = Array.from(new Set(jobs.map(j => j.county))).sort();
@@ -163,548 +117,302 @@ export default function Dashboard() {
 
   // Apply filters and search
   const filteredJobs = jobs.filter(job => {
-    // Saved jobs filter
-    if (showSavedOnly && !favorites.has(job.id)) return false;
-
-    // Search
     if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      const matchesSearch =
-        job.title.toLowerCase().includes(query) ||
-        job.hospital_name.toLowerCase().includes(query) ||
-        job.county.toLowerCase().includes(query) ||
-        job.clinical_lead?.toLowerCase().includes(query);
-      if (!matchesSearch) return false;
+      const q = searchQuery.toLowerCase();
+      const matches =
+        job.title.toLowerCase().includes(q) ||
+        job.hospital_name.toLowerCase().includes(q) ||
+        job.county.toLowerCase().includes(q) ||
+        job.clinical_lead?.toLowerCase().includes(q);
+      if (!matches) return false;
     }
-
-    // Filters
     if (filters.specialties.length && !filters.specialties.includes(job.specialty)) return false;
     if (filters.hospitalGroups.length && !filters.hospitalGroups.includes(job.hospital_group)) return false;
     if (filters.counties.length && !filters.counties.includes(job.county)) return false;
     if (filters.schemeTypes.length && !filters.schemeTypes.includes(job.scheme_type)) return false;
-
     return true;
   });
 
-  // Deadline alerts
-  const deadlineAlerts = checkDeadlines(filteredJobs);
-  const criticalAlerts = deadlineAlerts.filter(a => a.urgency === 'critical');
-
-  // Application stats
-  const appStats = {
-    total: applications.size,
-    applied: Array.from(applications.values()).filter(s => s === 'APPLIED').length,
-    interview: Array.from(applications.values()).filter(s => s === 'INTERVIEW_OFFERED').length,
-    shortlisted: Array.from(applications.values()).filter(s => s === 'SHORTLISTED').length,
-  };
-
   const activeFilterCount =
-    filters.specialties.length +
-    filters.hospitalGroups.length +
-    filters.counties.length +
-    filters.schemeTypes.length;
+    filters.specialties.length + filters.hospitalGroups.length +
+    filters.counties.length + filters.schemeTypes.length;
 
-  // Show loading state while auth initializes
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-linkedin-blue mx-auto mb-4"></div>
-          <p className="text-slate-600">Loading...</p>
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-teal mx-auto mb-4"></div>
+          <p className="text-sm text-slate-500">Loading...</p>
         </div>
       </div>
     );
   }
 
-  // Show login modal if not authenticated
   if (!user) {
-    return (
-      <LoginModal
-        isOpen={showLoginModal}
-        onClose={() => setShowLoginModal(false)}
-      />
-    );
+    return <LoginModal isOpen={showLoginModal} onClose={() => setShowLoginModal(false)} />;
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      {/* Header */}
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-10 shadow-sm">
-        <div className="max-w-[1920px] mx-auto px-3 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-14 sm:h-16">
-            {/* Logo */}
-            <div className="flex items-center gap-2 sm:gap-3">
-              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-r from-linkedin-blue to-linkedin-blue-light rounded-lg flex items-center justify-center">
-                <Briefcase className="w-4 h-4 sm:w-6 sm:h-6 text-white" />
-              </div>
-              <div>
-                <h1 className="text-base sm:text-xl font-bold text-slate-900">MedMatch-IE</h1>
-                <p className="text-xs text-slate-500 hidden sm:block">July 2026 SHO/REG Rotation</p>
-              </div>
+    <div className="h-screen flex flex-col bg-background overflow-hidden">
+      {/* Glassmorphism Header */}
+      <header className="sticky top-0 z-50 bg-white/70 backdrop-blur-xl border-b border-slate-200/60">
+        <div className="flex items-center justify-between h-14 px-4 lg:px-6">
+          {/* Left: Logo */}
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 bg-teal rounded-lg flex items-center justify-center">
+              <Briefcase className="w-4 h-4 text-white" />
             </div>
-
-            {/* Actions */}
-            <div className="flex items-center gap-1.5 sm:gap-4">
-              {/* User Info */}
-              <div className="hidden sm:flex items-center gap-3 px-3 py-1.5 bg-slate-50 rounded-lg border border-slate-200">
-                <UserIcon className="w-4 h-4 text-slate-600" />
-                <span className="text-sm font-medium text-slate-700">{user.name}</span>
-              </div>
-
-              {/* Notifications */}
-              <button
-                onClick={() => setShowNotifications(!showNotifications)}
-                className="relative p-1.5 sm:p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
-              >
-                <Bell className="w-5 h-5" />
-                {criticalAlerts.length > 0 && (
-                  <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
-                )}
-              </button>
-
-              {/* My Applications */}
-              <button className="px-2 py-1.5 sm:px-4 sm:py-2 bg-linkedin-blue text-white text-xs sm:text-sm font-medium rounded-lg hover:bg-linkedin-blue-dark transition-colors flex items-center gap-1.5 sm:gap-2">
-                <Calendar className="w-4 h-4" />
-                <span className="hidden sm:inline">My Applications</span>
-                {appStats.total > 0 && (
-                  <span className="px-1.5 py-0.5 sm:px-2 bg-white/20 rounded-full text-xs">
-                    {appStats.total}
-                  </span>
-                )}
-              </button>
-
-              {/* Logout */}
-              <button
-                onClick={handleLogout}
-                className="p-1.5 sm:p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
-                title="Logout"
-              >
-                <LogOut className="w-4 h-4 sm:w-5 sm:h-5" />
-              </button>
+            <div>
+              <h1 className="text-base font-bold text-slate-900 leading-none">MedMatch-IE</h1>
+              <p className="text-[10px] text-slate-400 leading-none mt-0.5">NCHD Jobs Ireland</p>
             </div>
+          </div>
+
+          {/* Center: Centile Input */}
+          <div className="hidden sm:flex items-center gap-2 bg-white/80 border border-slate-200 rounded-lg px-3 py-1.5">
+            <TrendingUp className="w-4 h-4 text-teal" />
+            <input
+              type="number"
+              min="0"
+              max="100"
+              placeholder="Enter your Centile"
+              value={userCentile || ''}
+              onChange={(e) => setUserCentile(e.target.value ? parseInt(e.target.value) : undefined)}
+              className="w-28 text-sm bg-transparent border-none outline-none placeholder:text-slate-400"
+            />
+            {userCentile && (
+              <span className="text-xs font-medium text-teal">{userCentile}th</span>
+            )}
+          </div>
+
+          {/* Right: User & Logout */}
+          <div className="flex items-center gap-3">
+            <span className="hidden md:block text-sm text-slate-600">{user.name}</span>
+            <button
+              onClick={handleLogout}
+              className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+              title="Logout"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
           </div>
         </div>
-
-        {/* Notification Dropdown */}
-        {showNotifications && deadlineAlerts.length > 0 && (
-          <div className="absolute top-14 sm:top-16 right-2 sm:right-4 w-[calc(100vw-1rem)] sm:w-96 max-w-md bg-white rounded-lg shadow-2xl border border-slate-200 p-4 animate-slide-up">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="font-semibold text-slate-900 text-sm sm:text-base">Upcoming Deadlines</h3>
-              <button
-                onClick={() => setShowNotifications(false)}
-                className="p-1 hover:bg-slate-100 rounded"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <div className="space-y-2 max-h-96 overflow-y-auto">
-              {deadlineAlerts.slice(0, 5).map(alert => (
-                <div
-                  key={alert.job.id}
-                  className={`p-3 rounded-lg border ${
-                    alert.urgency === 'critical'
-                      ? 'bg-red-50 border-red-200'
-                      : 'bg-amber-50 border-amber-200'
-                  }`}
-                >
-                  <p className="text-sm font-medium text-slate-900">
-                    {alert.job.title}
-                  </p>
-                  <p className="text-xs text-slate-600 mt-1">
-                    {alert.message}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
       </header>
 
-      {/* Main Content */}
-      <div className="max-w-[1920px] mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6">
-          {/* Left Pane - Job List */}
-          <div className={`lg:col-span-5 xl:col-span-4 space-y-4 ${selectedJob ? 'hidden lg:block' : ''}`}>
-            {/* Stats Banner */}
-            <div className="grid grid-cols-3 gap-2">
-              <div className="bg-linkedin-blue rounded-lg p-3 text-white shadow-sm">
-                <p className="text-[10px] font-medium mb-1">Active Jobs</p>
-                <p className="text-2xl font-bold">{filteredJobs.length}</p>
-              </div>
-              <div className="bg-green-600 rounded-lg p-3 text-white shadow-sm">
-                <p className="text-[10px] font-medium mb-1">Applied</p>
-                <p className="text-2xl font-bold">{appStats.applied}</p>
-              </div>
-              <button
-                onClick={() => setShowSavedOnly(!showSavedOnly)}
-                className={`rounded-lg p-3 shadow-sm transition-colors ${
-                  showSavedOnly
-                    ? 'bg-red-600 text-white'
-                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                }`}
-              >
-                <p className="text-[10px] font-medium mb-1">Saved Jobs</p>
-                <p className="text-2xl font-bold">{favorites.size}</p>
-              </button>
+      {/* Main: Master-Detail Layout */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Left Sidebar: Job List (400px) */}
+        <aside className={`w-full lg:w-[400px] lg:min-w-[400px] flex flex-col border-r border-slate-200 bg-white ${
+          selectedJob ? 'hidden lg:flex' : 'flex'
+        }`}>
+          {/* Search & Filter Bar */}
+          <div className="p-3 space-y-2 border-b border-slate-100">
+            {/* Search */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search jobs, hospitals..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-4 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-teal focus:border-teal"
+              />
             </div>
 
-            {/* Search & Filters */}
-            <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4 space-y-3">
-              {/* Search */}
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                <input
-                  type="text"
-                  placeholder="Search jobs, hospitals, specialties..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-linkedin-blue focus:border-transparent"
-                />
-              </div>
+            {/* Mobile centile input */}
+            <div className="sm:hidden relative">
+              <TrendingUp className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-teal" />
+              <input
+                type="number"
+                min="0"
+                max="100"
+                placeholder="Enter your Centile"
+                value={userCentile || ''}
+                onChange={(e) => setUserCentile(e.target.value ? parseInt(e.target.value) : undefined)}
+                className="w-full pl-9 pr-4 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-teal focus:border-teal"
+              />
+            </div>
 
-              {/* Centile Input for Match Probability */}
-              <div className="relative">
-                <TrendingUp className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                <input
-                  type="number"
-                  min="0"
-                  max="100"
-                  placeholder="Enter your HSE centile (optional)"
-                  value={userCentile || ''}
-                  onChange={(e) => {
-                    const value = e.target.value ? parseInt(e.target.value) : undefined;
-                    setUserCentile(value);
-                  }}
-                  className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                />
-                {userCentile && (
-                  <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-green-600 font-medium">
-                    {userCentile}th
-                  </div>
-                )}
-              </div>
-
-              {/* Filter Toggle */}
+            {/* Filter Toggle */}
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-slate-500">
+                {filteredJobs.length} job{filteredJobs.length !== 1 ? 's' : ''}
+              </span>
               <button
                 onClick={() => setShowFilters(!showFilters)}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-md transition-colors ${
+                  showFilters || activeFilterCount > 0
+                    ? 'bg-teal/10 text-teal'
+                    : 'text-slate-500 hover:bg-slate-100'
+                }`}
               >
-                <Filter className="w-4 h-4" />
+                <Filter className="w-3.5 h-3.5" />
                 Filters
                 {activeFilterCount > 0 && (
-                  <span className="px-2 py-0.5 bg-linkedin-blue text-white text-xs rounded-full">
+                  <span className="px-1.5 py-0.5 bg-teal text-white text-[10px] rounded-full leading-none">
                     {activeFilterCount}
                   </span>
                 )}
               </button>
-
-              {/* Filter Panel */}
-              {showFilters && (
-                <div className="pt-3 border-t border-slate-200 space-y-4 animate-slide-up">
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-medium text-slate-700">Active Filters</p>
-                    {activeFilterCount > 0 && (
-                      <button
-                        onClick={clearFilters}
-                        className="text-xs text-linkedin-blue hover:underline"
-                      >
-                        Clear all
-                      </button>
-                    )}
-                  </div>
-
-                  {/* Specialty Filter */}
-                  <div>
-                    <p className="text-xs font-medium text-slate-600 mb-2">Specialty</p>
-                    <div className="space-y-1 max-h-40 overflow-y-auto">
-                      {uniqueSpecialties.map(specialty => (
-                        <label key={specialty} className="flex items-center gap-2 text-sm">
-                          <input
-                            type="checkbox"
-                            checked={filters.specialties.includes(specialty)}
-                            onChange={() => toggleFilter('specialties', specialty)}
-                            className="rounded border-slate-300 text-linkedin-blue focus:ring-linkedin-blue"
-                          />
-                          <span className="text-slate-700">{SPECIALTY_LABELS[specialty]}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Hospital Group Filter */}
-                  <div>
-                    <p className="text-xs font-medium text-slate-600 mb-2">Hospital Group</p>
-                    <div className="space-y-1">
-                      {uniqueHospitalGroups.map(group => (
-                        <label key={group} className="flex items-center gap-2 text-sm">
-                          <input
-                            type="checkbox"
-                            checked={filters.hospitalGroups.includes(group)}
-                            onChange={() => toggleFilter('hospitalGroups', group)}
-                            className="rounded border-slate-300 text-linkedin-blue focus:ring-linkedin-blue"
-                          />
-                          <span className="text-slate-700">{HOSPITAL_GROUP_LABELS[group]}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* County Filter */}
-                  <div>
-                    <p className="text-xs font-medium text-slate-600 mb-2">County</p>
-                    <div className="space-y-1 max-h-40 overflow-y-auto">
-                      {uniqueCounties.map(county => (
-                        <label key={county} className="flex items-center gap-2 text-sm">
-                          <input
-                            type="checkbox"
-                            checked={filters.counties.includes(county)}
-                            onChange={() => toggleFilter('counties', county)}
-                            className="rounded border-slate-300 text-linkedin-blue focus:ring-linkedin-blue"
-                          />
-                          <span className="text-slate-700">{county}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Scheme Type Filter */}
-                  <div>
-                    <p className="text-xs font-medium text-slate-600 mb-2">Scheme Type</p>
-                    <div className="space-y-1">
-                      {uniqueSchemeTypes.map(scheme => (
-                        <label key={scheme} className="flex items-center gap-2 text-sm">
-                          <input
-                            type="checkbox"
-                            checked={filters.schemeTypes.includes(scheme)}
-                            onChange={() => toggleFilter('schemeTypes', scheme)}
-                            className="rounded border-slate-300 text-linkedin-blue focus:ring-linkedin-blue"
-                          />
-                          <span className="text-slate-700">{SCHEME_TYPE_LABELS[scheme]}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
             </div>
 
-            {/* Job Cards List */}
-            <div className="space-y-3 max-h-[calc(100vh-480px)] overflow-y-auto pb-4">
-              {loading ? (
-                <div className="flex items-center justify-center py-12">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-linkedin-blue"></div>
+            {/* Filter Panel */}
+            {showFilters && (
+              <div className="pt-2 border-t border-slate-100 space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-medium text-slate-600">Active Filters</p>
+                  {activeFilterCount > 0 && (
+                    <button onClick={clearFilters} className="text-[10px] text-teal hover:underline">
+                      Clear all
+                    </button>
+                  )}
                 </div>
-              ) : filteredJobs.length === 0 ? (
-                <div className="bg-white rounded-lg border border-slate-200 p-8 text-center">
-                  <p className="text-slate-600">No jobs match your criteria</p>
-                  <p className="text-sm text-slate-500 mt-2">
-                    Try adjusting your filters or search query
-                  </p>
-                </div>
-              ) : (
-                filteredJobs.map(job => (
-                  <JobCard
-                    key={job.id}
-                    job={job}
-                    userStatus={applications.get(job.id)}
-                    userCentile={userCentile}
-                    userName={user?.name}
-                    userEmail={user?.email}
-                    isFavorite={favorites.has(job.id)}
-                    onStatusChange={handleStatusChange}
-                    onCardClick={setSelectedJob}
-                    onFavoriteToggle={handleFavoriteToggle}
-                    isSelected={selectedJob?.id === job.id}
-                  />
-                ))
-              )}
-            </div>
-          </div>
 
-          {/* Right Pane - Detailed View */}
-          <div className={`lg:col-span-7 xl:col-span-8 ${selectedJob ? '' : 'hidden lg:block'}`}>
-            {selectedJob ? (
-              <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4 sm:p-6 space-y-4 sm:space-y-6">
-                {/* Mobile Back Button */}
-                <button
-                  onClick={() => setSelectedJob(null)}
-                  className="lg:hidden flex items-center gap-2 text-linkedin-blue hover:text-linkedin-blue-dark font-medium text-sm mb-2"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                  </svg>
-                  Back to Jobs
-                </button>
-
-                {/* Header */}
+                {/* Specialty */}
                 <div>
-                  <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-slate-900 mb-2">
-                    {selectedJob.title}
-                  </h2>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-linkedin-blue text-white">
-                      {selectedJob.grade}
-                    </span>
-                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                      selectedJob.scheme_type.includes('TRAINING')
-                        ? 'bg-blue-100 text-blue-700'
-                        : 'bg-slate-100 text-slate-700'
-                    }`}>
-                      {SCHEME_TYPE_LABELS[selectedJob.scheme_type]}
-                    </span>
-                    <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-slate-100 text-slate-700">
-                      {SPECIALTY_LABELS[selectedJob.specialty]}
-                    </span>
+                  <p className="text-[10px] font-medium text-slate-500 uppercase tracking-wider mb-1">Specialty</p>
+                  <div className="flex flex-wrap gap-1">
+                    {uniqueSpecialties.map(s => (
+                      <button
+                        key={s}
+                        onClick={() => toggleFilter('specialties', s)}
+                        className={`px-2 py-0.5 text-[11px] rounded transition-colors ${
+                          filters.specialties.includes(s)
+                            ? 'bg-teal text-white'
+                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                        }`}
+                      >
+                        {SPECIALTY_LABELS[s]}
+                      </button>
+                    ))}
                   </div>
                 </div>
 
-                {/* Deadline Alert */}
-                {(() => {
-                  const hours = differenceInHours(new Date(selectedJob.application_deadline), new Date());
-                  return (
-                    <div className={`p-4 rounded-lg border ${
-                      hours <= 48
-                        ? 'bg-red-50 border-red-200'
-                        : hours <= 168
-                        ? 'bg-amber-50 border-amber-200'
-                        : 'bg-green-50 border-green-200'
-                    }`}>
-                      <div className="flex items-center gap-2">
-                        <Clock className={`w-5 h-5 ${
-                          hours <= 48 ? 'text-red-600' : hours <= 168 ? 'text-amber-600' : 'text-green-600'
-                        }`} />
-                        <div>
-                          <p className={`font-semibold ${
-                            hours <= 48 ? 'text-red-900' : hours <= 168 ? 'text-amber-900' : 'text-green-900'
-                          }`}>
-                            Application Deadline: {format(new Date(selectedJob.application_deadline), 'MMM d, yyyy @ h:mm a')}
-                          </p>
-                          <p className={`text-sm ${
-                            hours <= 48 ? 'text-red-700' : hours <= 168 ? 'text-amber-700' : 'text-green-700'
-                          }`}>
-                            {hours <= 48 ? `⚠️ URGENT: Only ${Math.floor(hours)} hours remaining!` :
-                             hours <= 168 ? `${Math.ceil(hours / 24)} days remaining` :
-                             'Plenty of time to apply'}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })()}
-
-                {/* Hospital & Location */}
-                <div className="space-y-3 p-4 bg-slate-50 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <Building2 className="w-5 h-5 text-slate-400" />
-                    <div>
-                      <p className="font-semibold text-slate-900">{selectedJob.hospital_name}</p>
-                      <p className="text-sm text-slate-600">
-                        {HOSPITAL_GROUP_LABELS[selectedJob.hospital_group]}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <MapPin className="w-5 h-5 text-slate-400" />
-                    <p className="text-slate-700">{selectedJob.county}</p>
+                {/* Hospital Group */}
+                <div>
+                  <p className="text-[10px] font-medium text-slate-500 uppercase tracking-wider mb-1">Hospital Group</p>
+                  <div className="flex flex-wrap gap-1">
+                    {uniqueHospitalGroups.map(g => (
+                      <button
+                        key={g}
+                        onClick={() => toggleFilter('hospitalGroups', g)}
+                        className={`px-2 py-0.5 text-[11px] rounded transition-colors ${
+                          filters.hospitalGroups.includes(g)
+                            ? 'bg-teal text-white'
+                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                        }`}
+                      >
+                        {HOSPITAL_GROUP_LABELS[g]}
+                      </button>
+                    ))}
                   </div>
                 </div>
 
-                {/* Job Details */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold text-slate-900">Position Details</h3>
-
-                  {selectedJob.rotational_detail && (
-                    <div className="p-4 bg-blue-50 rounded-lg border border-blue-100">
-                      <p className="text-sm font-medium text-blue-900 mb-1">Rotational Structure</p>
-                      <p className="text-blue-800">{selectedJob.rotational_detail}</p>
-                    </div>
-                  )}
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-sm text-slate-600">Start Date</p>
-                      <p className="font-medium text-slate-900">
-                        {format(new Date(selectedJob.start_date), 'MMM d, yyyy')}
-                      </p>
-                    </div>
-                    {selectedJob.duration_months && (
-                      <div>
-                        <p className="text-sm text-slate-600">Duration</p>
-                        <p className="font-medium text-slate-900">{selectedJob.duration_months} months</p>
-                      </div>
-                    )}
+                {/* County */}
+                <div>
+                  <p className="text-[10px] font-medium text-slate-500 uppercase tracking-wider mb-1">County</p>
+                  <div className="flex flex-wrap gap-1">
+                    {uniqueCounties.map(c => (
+                      <button
+                        key={c}
+                        onClick={() => toggleFilter('counties', c)}
+                        className={`px-2 py-0.5 text-[11px] rounded transition-colors ${
+                          filters.counties.includes(c)
+                            ? 'bg-teal text-white'
+                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                        }`}
+                      >
+                        {c}
+                      </button>
+                    ))}
                   </div>
                 </div>
 
-                {/* Contacts */}
-                {(selectedJob.informal_enquiries_email || selectedJob.clinical_lead) && (
-                  <div className="space-y-3">
-                    <h3 className="text-lg font-semibold text-slate-900">Contact Information</h3>
-
-                    {selectedJob.informal_enquiries_email && (
-                      <div className="p-4 bg-blue-50 rounded-lg border border-blue-100">
-                        <p className="text-sm font-medium text-blue-900 mb-2">Informal Enquiries</p>
-                        {selectedJob.informal_enquiries_name && (
-                          <p className="font-medium text-blue-800 mb-1">
-                            {selectedJob.informal_enquiries_name}
-                          </p>
-                        )}
-                        <a
-                          href={`mailto:${selectedJob.informal_enquiries_email}`}
-                          className="inline-flex items-center gap-2 text-linkedin-blue hover:underline"
-                        >
-                          <Mail className="w-4 h-4" />
-                          {selectedJob.informal_enquiries_email}
-                        </a>
-                      </div>
-                    )}
-
-                    {selectedJob.clinical_lead && (
-                      <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
-                        <p className="text-sm font-medium text-slate-700 mb-1">Clinical Lead</p>
-                        <p className="text-slate-900">{selectedJob.clinical_lead}</p>
-                      </div>
-                    )}
+                {/* Scheme Type */}
+                <div>
+                  <p className="text-[10px] font-medium text-slate-500 uppercase tracking-wider mb-1">Scheme</p>
+                  <div className="flex flex-wrap gap-1">
+                    {uniqueSchemeTypes.map(s => (
+                      <button
+                        key={s}
+                        onClick={() => toggleFilter('schemeTypes', s)}
+                        className={`px-2 py-0.5 text-[11px] rounded transition-colors ${
+                          filters.schemeTypes.includes(s)
+                            ? 'bg-teal text-white'
+                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                        }`}
+                      >
+                        {SCHEME_TYPE_LABELS[s]}
+                      </button>
+                    ))}
                   </div>
-                )}
-
-                {/* Actions */}
-                <div className="flex flex-wrap gap-3 pt-4 border-t border-slate-200">
-                  {selectedJob.application_url && (
-                    <a
-                      href={selectedJob.application_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="px-6 py-3 bg-linkedin-blue text-white font-medium rounded-lg hover:bg-linkedin-blue-dark transition-colors inline-flex items-center gap-2"
-                    >
-                      Apply Now
-                      <ExternalLink className="w-4 h-4" />
-                    </a>
-                  )}
-                  {selectedJob.job_spec_pdf_url && (
-                    <a
-                      href={selectedJob.job_spec_pdf_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="px-6 py-3 border border-slate-200 text-slate-700 font-medium rounded-lg hover:bg-slate-50 transition-colors inline-flex items-center gap-2"
-                    >
-                      <FileText className="w-4 h-4" />
-                      View Job Spec
-                    </a>
-                  )}
                 </div>
-              </div>
-            ) : (
-              <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-12 text-center">
-                <Briefcase className="w-16 h-16 text-slate-300 mx-auto mb-4" />
-                <p className="text-slate-600 text-lg">Select a job to view details</p>
-                <p className="text-sm text-slate-500 mt-2">
-                  Click on any job card to see full information
-                </p>
               </div>
             )}
           </div>
-        </div>
+
+          {/* Job List */}
+          <div className="flex-1 overflow-y-auto custom-scrollbar">
+            {loading ? (
+              <div className="flex items-center justify-center py-20">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal"></div>
+              </div>
+            ) : filteredJobs.length === 0 ? (
+              <div className="px-6 py-20 text-center">
+                <Briefcase className="w-10 h-10 text-slate-300 mx-auto mb-3" />
+                <p className="text-sm text-slate-500">No jobs match your criteria</p>
+                <p className="text-xs text-slate-400 mt-1">Try adjusting your filters</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-slate-100">
+                {filteredJobs.map(job => (
+                  <JobCard
+                    key={job.id}
+                    job={job}
+                    userCentile={userCentile}
+                    isSelected={selectedJob?.id === job.id}
+                    onCardClick={setSelectedJob}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        </aside>
+
+        {/* Right Pane: Detail View */}
+        <main className={`flex-1 flex flex-col bg-white ${
+          selectedJob ? 'flex' : 'hidden lg:flex'
+        }`}>
+          {selectedJob ? (
+            <>
+              {/* Mobile Back Button */}
+              <button
+                onClick={() => setSelectedJob(null)}
+                className="lg:hidden flex items-center gap-1.5 px-4 py-2.5 text-sm text-teal font-medium border-b border-slate-200"
+              >
+                <ChevronLeft className="w-4 h-4" />
+                Back to Jobs
+              </button>
+
+              <DetailView
+                job={selectedJob}
+                userCentile={userCentile}
+                userName={user?.name}
+                userEmail={user?.email}
+                isFavorite={favorites.has(selectedJob.id)}
+                onFavoriteToggle={handleFavoriteToggle}
+              />
+            </>
+          ) : (
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-center">
+                <Briefcase className="w-14 h-14 text-slate-200 mx-auto mb-4" />
+                <p className="text-slate-500 text-lg font-medium">Select a job to view details</p>
+                <p className="text-sm text-slate-400 mt-1">Click any job card on the left</p>
+              </div>
+            </div>
+          )}
+        </main>
       </div>
     </div>
   );
