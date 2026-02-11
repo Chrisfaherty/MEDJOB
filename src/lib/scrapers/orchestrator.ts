@@ -303,6 +303,37 @@ export class ScraperOrchestrator {
 
       console.log(`Successfully saved ${totalSaved} jobs to Supabase`);
 
+      // Deactivate stale jobs: any job from these sources that wasn't in this scrape
+      const scrapedSources = [...new Set(jobs.map(j => this.mapSourcePlatform(j.source_platform)))];
+      const scrapedTitles = new Set(jobs.map(j => j.title.toLowerCase()));
+
+      for (const source of scrapedSources) {
+        const { data: existingJobs } = await supabaseAdmin
+          .from('jobs')
+          .select('id, title')
+          .eq('source', source)
+          .eq('is_active', true);
+
+        if (existingJobs) {
+          const staleIds = existingJobs
+            .filter(j => !scrapedTitles.has(j.title.toLowerCase()))
+            .map(j => j.id);
+
+          if (staleIds.length > 0) {
+            const { error: deactivateError } = await supabaseAdmin
+              .from('jobs')
+              .update({ is_active: false, updated_at: new Date().toISOString() })
+              .in('id', staleIds);
+
+            if (deactivateError) {
+              console.error(`Error deactivating stale ${source} jobs:`, deactivateError);
+            } else {
+              console.log(`Deactivated ${staleIds.length} stale ${source} jobs`);
+            }
+          }
+        }
+      }
+
       // Log the scraping operation
       await this.logScrapingOperation(
         jobs.length,
