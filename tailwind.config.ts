@@ -9,7 +9,12 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // LinkedIn-inspired color palette
+        apple: {
+          black: '#1D1D1F',
+          gray: '#F5F5F7',
+          'gray-dark': '#E8E8ED',
+          secondary: '#86868B',
+        },
         linkedin: {
           blue: '#0A66C2',
           'blue-dark': '#004182',
@@ -28,29 +33,29 @@ const config: Config = {
           900: '#0F172A',
           950: '#020617',
         },
-        // Status colors
         status: {
           applied: '#10B981',
           interview: '#F59E0B',
           shortlisted: '#8B5CF6',
           rejected: '#EF4444',
         },
-        // Scheme colors
         scheme: {
           training: '#3B82F6',
           'non-training': '#6B7280',
         },
-        // Deadline urgency
         deadline: {
-          critical: '#DC2626', // < 48 hours
-          warning: '#F59E0B', // < 7 days
-          normal: '#10B981', // > 7 days
+          critical: '#DC2626',
+          warning: '#F59E0B',
+          normal: '#10B981',
         },
       },
       boxShadow: {
-        'card': '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1)',
-        'card-hover': '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1)',
-        'linkedin': '0 0 0 1px rgba(0, 0, 0, 0.08), 0 0 2px rgba(0, 0, 0, 0.08), 0 2px 4px rgba(0, 0, 0, 0.08)',
+        'card': '0 1px 3px 0 rgba(0, 0, 0, 0.04), 0 1px 2px -1px rgba(0, 0, 0, 0.04)',
+        'card-hover': '0 4px 12px -2px rgba(0, 0, 0, 0.08), 0 2px 6px -2px rgba(0, 0, 0, 0.04)',
+        'glass': '0 1px 3px rgba(0, 0, 0, 0.04), 0 4px 12px rgba(0, 0, 0, 0.03)',
+        'bloom': '0 0 30px rgba(0, 122, 126, 0.12)',
+        'bloom-lg': '0 0 40px rgba(0, 122, 126, 0.18)',
+        'float': '0 8px 30px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04)',
       },
       animation: {
         'fade-in': 'fadeIn 0.2s ease-in',

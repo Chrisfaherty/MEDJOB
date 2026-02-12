@@ -3,12 +3,14 @@
 import { useState, useEffect } from 'react';
 import {
   Search,
-  Filter,
+  SlidersHorizontal,
   TrendingUp,
   Briefcase,
   LogOut,
   ChevronLeft,
+  X,
 } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
 import JobCard from '@/components/JobCard';
 import DetailView from '@/components/DetailView';
 import LoginModal from '@/components/LoginModal';
@@ -22,7 +24,7 @@ import { storageAPI, initializeLocalStorage } from '@/lib/localStorage';
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function Dashboard() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, signOut } = useAuth();
   const [showLoginModal, setShowLoginModal] = useState(false);
 
   // Data state
@@ -78,8 +80,7 @@ export default function Dashboard() {
   };
 
   const handleLogout = async () => {
-    const { authService } = await import('@/lib/auth');
-    await authService.signOut();
+    await signOut();
     setShowLoginModal(true);
   };
 
@@ -115,7 +116,6 @@ export default function Dashboard() {
   const uniqueCounties = Array.from(new Set(jobs.map(j => j.county))).sort();
   const uniqueSchemeTypes = Array.from(new Set(jobs.map(j => j.scheme_type)));
 
-  // Apply filters and search
   const filteredJobs = jobs.filter(job => {
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
@@ -137,12 +137,17 @@ export default function Dashboard() {
     filters.specialties.length + filters.hospitalGroups.length +
     filters.counties.length + filters.schemeTypes.length;
 
+  // User initials for avatar
+  const userInitials = user?.name
+    ? user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+    : '?';
+
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-screen bg-apple-gray flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-teal mx-auto mb-4"></div>
-          <p className="text-sm text-slate-500">Loading...</p>
+          <div className="animate-spin rounded-full h-8 w-8 border-2 border-slate-200 border-t-teal mx-auto mb-4"></div>
+          <p className="text-sm text-apple-secondary">Loading...</p>
         </div>
       </div>
     );
@@ -153,44 +158,49 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-background overflow-hidden">
-      {/* Glassmorphism Header */}
-      <header className="sticky top-0 z-50 bg-white/70 backdrop-blur-xl border-b border-slate-200/60">
+    <div className="h-screen flex flex-col bg-apple-gray overflow-hidden">
+      {/* Header — Frosted Glass */}
+      <header className="sticky top-0 z-50 glass border-b border-slate-200/50">
         <div className="flex items-center justify-between h-14 px-4 lg:px-6">
           {/* Left: Logo */}
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 bg-teal rounded-lg flex items-center justify-center">
+            <div className="w-8 h-8 bg-teal rounded-xl flex items-center justify-center">
               <Briefcase className="w-4 h-4 text-white" />
             </div>
             <div>
-              <h1 className="text-base font-bold text-slate-900 leading-none">MedMatch-IE</h1>
-              <p className="text-[10px] text-slate-400 leading-none mt-0.5">NCHD Jobs Ireland</p>
+              <h1 className="text-[15px] font-bold text-apple-black leading-none tracking-tight">MedMatch-IE</h1>
+              <p className="text-[10px] text-apple-secondary leading-none mt-0.5">NCHD Jobs Ireland</p>
             </div>
           </div>
 
           {/* Center: Centile Input */}
-          <div className="hidden sm:flex items-center gap-2 bg-white/80 border border-slate-200 rounded-lg px-3 py-1.5">
-            <TrendingUp className="w-4 h-4 text-teal" />
+          <div className="hidden sm:flex items-center gap-2 bg-white/60 border border-slate-200/80 rounded-xl px-3 py-1.5 shadow-card">
+            <TrendingUp className="w-3.5 h-3.5 text-teal" />
             <input
               type="number"
               min="0"
               max="100"
-              placeholder="Enter your Centile"
+              placeholder="Your centile"
               value={userCentile || ''}
               onChange={(e) => setUserCentile(e.target.value ? parseInt(e.target.value) : undefined)}
-              className="w-28 text-sm bg-transparent border-none outline-none placeholder:text-slate-400"
+              className="w-24 text-[13px] bg-transparent border-none outline-none placeholder:text-slate-400 text-apple-black"
             />
             {userCentile && (
-              <span className="text-xs font-medium text-teal">{userCentile}th</span>
+              <span className="text-[11px] font-semibold text-teal">{userCentile}th</span>
             )}
           </div>
 
-          {/* Right: User & Logout */}
-          <div className="flex items-center gap-3">
-            <span className="hidden md:block text-sm text-slate-600">{user.name}</span>
+          {/* Right: Avatar + Logout */}
+          <div className="flex items-center gap-2.5">
+            <div className="hidden md:flex items-center gap-2">
+              <div className="w-7 h-7 rounded-full bg-teal/10 flex items-center justify-center">
+                <span className="text-[10px] font-bold text-teal">{userInitials}</span>
+              </div>
+              <span className="text-[13px] text-slate-600 font-medium">{user.name}</span>
+            </div>
             <button
               onClick={handleLogout}
-              className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+              className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100/80 rounded-xl transition-colors"
               title="Logout"
             >
               <LogOut className="w-4 h-4" />
@@ -201,12 +211,12 @@ export default function Dashboard() {
 
       {/* Main: Master-Detail Layout */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Left Sidebar: Job List (400px) */}
-        <aside className={`w-full lg:w-[400px] lg:min-w-[400px] flex flex-col border-r border-slate-200 bg-white ${
+        {/* Left Sidebar */}
+        <aside className={`w-full lg:w-[380px] lg:min-w-[380px] flex flex-col border-r border-slate-200/60 bg-white/50 ${
           selectedJob ? 'hidden lg:flex' : 'flex'
         }`}>
           {/* Search & Filter Bar */}
-          <div className="p-3 space-y-2 border-b border-slate-100">
+          <div className="p-3 space-y-2 border-b border-slate-100/80">
             {/* Search */}
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -215,7 +225,7 @@ export default function Dashboard() {
                 placeholder="Search jobs, hospitals..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-teal focus:border-teal"
+                className="w-full pl-9 pr-4 py-2.5 text-[13px] bg-apple-gray/60 border border-slate-200/60 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal/20 focus:border-teal/40 placeholder:text-slate-400 transition-all"
               />
             </div>
 
@@ -226,30 +236,30 @@ export default function Dashboard() {
                 type="number"
                 min="0"
                 max="100"
-                placeholder="Enter your Centile"
+                placeholder="Your centile"
                 value={userCentile || ''}
                 onChange={(e) => setUserCentile(e.target.value ? parseInt(e.target.value) : undefined)}
-                className="w-full pl-9 pr-4 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-teal focus:border-teal"
+                className="w-full pl-9 pr-4 py-2.5 text-[13px] bg-apple-gray/60 border border-slate-200/60 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal/20 focus:border-teal/40 placeholder:text-slate-400 transition-all"
               />
             </div>
 
             {/* Filter Toggle */}
             <div className="flex items-center justify-between">
-              <span className="text-xs text-slate-500">
-                {filteredJobs.length} job{filteredJobs.length !== 1 ? 's' : ''}
+              <span className="text-[11px] text-apple-secondary font-medium">
+                {filteredJobs.length} position{filteredJobs.length !== 1 ? 's' : ''}
               </span>
               <button
                 onClick={() => setShowFilters(!showFilters)}
-                className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-md transition-colors ${
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium rounded-lg transition-all ${
                   showFilters || activeFilterCount > 0
                     ? 'bg-teal/10 text-teal'
-                    : 'text-slate-500 hover:bg-slate-100'
+                    : 'text-apple-secondary hover:bg-slate-100/80'
                 }`}
               >
-                <Filter className="w-3.5 h-3.5" />
+                <SlidersHorizontal className="w-3 h-3" />
                 Filters
                 {activeFilterCount > 0 && (
-                  <span className="px-1.5 py-0.5 bg-teal text-white text-[10px] rounded-full leading-none">
+                  <span className="px-1.5 py-0.5 bg-teal text-white text-[9px] font-bold rounded-full leading-none">
                     {activeFilterCount}
                   </span>
                 )}
@@ -257,121 +267,100 @@ export default function Dashboard() {
             </div>
 
             {/* Filter Panel */}
-            {showFilters && (
-              <div className="pt-2 border-t border-slate-100 space-y-3">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs font-medium text-slate-600">Active Filters</p>
-                  {activeFilterCount > 0 && (
-                    <button onClick={clearFilters} className="text-[10px] text-teal hover:underline">
-                      Clear all
-                    </button>
-                  )}
-                </div>
+            <AnimatePresence>
+              {showFilters && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="overflow-hidden"
+                >
+                  <div className="pt-2 border-t border-slate-100/80 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-[11px] font-semibold text-apple-black">Active Filters</p>
+                      {activeFilterCount > 0 && (
+                        <button onClick={clearFilters} className="text-[10px] text-teal hover:underline font-medium">
+                          Clear all
+                        </button>
+                      )}
+                    </div>
 
-                {/* Specialty */}
-                <div>
-                  <p className="text-[10px] font-medium text-slate-500 uppercase tracking-wider mb-1">Specialty</p>
-                  <div className="flex flex-wrap gap-1">
-                    {uniqueSpecialties.map(s => (
-                      <button
-                        key={s}
-                        onClick={() => toggleFilter('specialties', s)}
-                        className={`px-2 py-0.5 text-[11px] rounded transition-colors ${
-                          filters.specialties.includes(s)
-                            ? 'bg-teal text-white'
-                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                        }`}
-                      >
-                        {SPECIALTY_LABELS[s]}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                    {/* Specialty */}
+                    <FilterSection label="Specialty">
+                      {uniqueSpecialties.map(s => (
+                        <FilterChip
+                          key={s}
+                          label={SPECIALTY_LABELS[s]}
+                          active={filters.specialties.includes(s)}
+                          onClick={() => toggleFilter('specialties', s)}
+                        />
+                      ))}
+                    </FilterSection>
 
-                {/* Hospital Group */}
-                <div>
-                  <p className="text-[10px] font-medium text-slate-500 uppercase tracking-wider mb-1">Hospital Group</p>
-                  <div className="flex flex-wrap gap-1">
-                    {uniqueHospitalGroups.map(g => (
-                      <button
-                        key={g}
-                        onClick={() => toggleFilter('hospitalGroups', g)}
-                        className={`px-2 py-0.5 text-[11px] rounded transition-colors ${
-                          filters.hospitalGroups.includes(g)
-                            ? 'bg-teal text-white'
-                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                        }`}
-                      >
-                        {HOSPITAL_GROUP_LABELS[g]}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                    {/* Hospital Group */}
+                    <FilterSection label="Hospital Group">
+                      {uniqueHospitalGroups.map(g => (
+                        <FilterChip
+                          key={g}
+                          label={HOSPITAL_GROUP_LABELS[g]}
+                          active={filters.hospitalGroups.includes(g)}
+                          onClick={() => toggleFilter('hospitalGroups', g)}
+                        />
+                      ))}
+                    </FilterSection>
 
-                {/* County */}
-                <div>
-                  <p className="text-[10px] font-medium text-slate-500 uppercase tracking-wider mb-1">County</p>
-                  <div className="flex flex-wrap gap-1">
-                    {uniqueCounties.map(c => (
-                      <button
-                        key={c}
-                        onClick={() => toggleFilter('counties', c)}
-                        className={`px-2 py-0.5 text-[11px] rounded transition-colors ${
-                          filters.counties.includes(c)
-                            ? 'bg-teal text-white'
-                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                        }`}
-                      >
-                        {c}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                    {/* County */}
+                    <FilterSection label="County">
+                      {uniqueCounties.map(c => (
+                        <FilterChip
+                          key={c}
+                          label={c}
+                          active={filters.counties.includes(c)}
+                          onClick={() => toggleFilter('counties', c)}
+                        />
+                      ))}
+                    </FilterSection>
 
-                {/* Scheme Type */}
-                <div>
-                  <p className="text-[10px] font-medium text-slate-500 uppercase tracking-wider mb-1">Scheme</p>
-                  <div className="flex flex-wrap gap-1">
-                    {uniqueSchemeTypes.map(s => (
-                      <button
-                        key={s}
-                        onClick={() => toggleFilter('schemeTypes', s)}
-                        className={`px-2 py-0.5 text-[11px] rounded transition-colors ${
-                          filters.schemeTypes.includes(s)
-                            ? 'bg-teal text-white'
-                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                        }`}
-                      >
-                        {SCHEME_TYPE_LABELS[s]}
-                      </button>
-                    ))}
+                    {/* Scheme */}
+                    <FilterSection label="Scheme">
+                      {uniqueSchemeTypes.map(s => (
+                        <FilterChip
+                          key={s}
+                          label={SCHEME_TYPE_LABELS[s]}
+                          active={filters.schemeTypes.includes(s)}
+                          onClick={() => toggleFilter('schemeTypes', s)}
+                        />
+                      ))}
+                    </FilterSection>
                   </div>
-                </div>
-              </div>
-            )}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
           {/* Job List */}
           <div className="flex-1 overflow-y-auto custom-scrollbar">
             {loading ? (
               <div className="flex items-center justify-center py-20">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal"></div>
+                <div className="animate-spin rounded-full h-7 w-7 border-2 border-slate-200 border-t-teal"></div>
               </div>
             ) : filteredJobs.length === 0 ? (
               <div className="px-6 py-20 text-center">
-                <Briefcase className="w-10 h-10 text-slate-300 mx-auto mb-3" />
-                <p className="text-sm text-slate-500">No jobs match your criteria</p>
-                <p className="text-xs text-slate-400 mt-1">Try adjusting your filters</p>
+                <Briefcase className="w-10 h-10 text-slate-200 mx-auto mb-3" />
+                <p className="text-sm font-medium text-slate-500">No jobs match your criteria</p>
+                <p className="text-[11px] text-apple-secondary mt-1">Try adjusting your filters</p>
               </div>
             ) : (
-              <div className="divide-y divide-slate-100">
-                {filteredJobs.map(job => (
+              <div className="divide-y divide-slate-100/80">
+                {filteredJobs.map((job, index) => (
                   <JobCard
                     key={job.id}
                     job={job}
                     userCentile={userCentile}
                     isSelected={selectedJob?.id === job.id}
                     onCardClick={setSelectedJob}
+                    index={index}
                   />
                 ))}
               </div>
@@ -388,7 +377,7 @@ export default function Dashboard() {
               {/* Mobile Back Button */}
               <button
                 onClick={() => setSelectedJob(null)}
-                className="lg:hidden flex items-center gap-1.5 px-4 py-2.5 text-sm text-teal font-medium border-b border-slate-200"
+                className="lg:hidden flex items-center gap-1.5 px-4 py-2.5 text-[13px] text-teal font-semibold border-b border-slate-100"
               >
                 <ChevronLeft className="w-4 h-4" />
                 Back to Jobs
@@ -406,14 +395,44 @@ export default function Dashboard() {
           ) : (
             <div className="flex-1 flex items-center justify-center">
               <div className="text-center">
-                <Briefcase className="w-14 h-14 text-slate-200 mx-auto mb-4" />
-                <p className="text-slate-500 text-lg font-medium">Select a job to view details</p>
-                <p className="text-sm text-slate-400 mt-1">Click any job card on the left</p>
+                <div className="w-16 h-16 rounded-2xl bg-apple-gray flex items-center justify-center mx-auto mb-4">
+                  <Briefcase className="w-7 h-7 text-slate-300" />
+                </div>
+                <p className="text-apple-black text-lg font-semibold">Select a position</p>
+                <p className="text-[13px] text-apple-secondary mt-1">Click any job card to view details</p>
               </div>
             </div>
           )}
         </main>
       </div>
     </div>
+  );
+}
+
+// --- Sub-components ---
+
+function FilterSection({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <p className="text-[10px] font-semibold text-apple-secondary uppercase tracking-wider mb-1.5">{label}</p>
+      <div className="flex flex-wrap gap-1">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function FilterChip({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`px-2.5 py-1 text-[11px] font-medium rounded-full transition-all duration-150 ${
+        active
+          ? 'bg-teal text-white shadow-sm'
+          : 'bg-slate-100/80 text-slate-600 hover:bg-slate-200/80'
+      }`}
+    >
+      {label}
+    </button>
   );
 }

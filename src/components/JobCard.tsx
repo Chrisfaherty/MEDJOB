@@ -1,12 +1,8 @@
 'use client';
 
 import { formatDistanceToNow, differenceInHours, format } from 'date-fns';
-import {
-  Clock,
-  Mail,
-  Building2,
-  TrendingUp,
-} from 'lucide-react';
+import { Clock, Mail, MapPin, TrendingUp } from 'lucide-react';
+import { motion } from 'framer-motion';
 import type { Job, MatchRating } from '@/types/database.types';
 import {
   SPECIALTY_LABELS,
@@ -21,6 +17,7 @@ interface JobCardProps {
   userCentile?: number;
   isSelected?: boolean;
   onCardClick?: (job: Job) => void;
+  index?: number;
 }
 
 export default function JobCard({
@@ -28,6 +25,7 @@ export default function JobCard({
   userCentile,
   isSelected = false,
   onCardClick,
+  index = 0,
 }: JobCardProps) {
   const hospitalTier = job.historical_centile_tier || getHospitalTier(job.hospital_name);
   const matchRating: MatchRating | undefined =
@@ -38,105 +36,98 @@ export default function JobCard({
     new Date()
   );
 
-  const timePosted = job.created_at
-    ? formatDistanceToNow(new Date(job.created_at), { addSuffix: true })
-    : '';
+  const closingDate = format(new Date(job.application_deadline), 'MMM d');
 
-  const closingDate = format(new Date(job.application_deadline), 'MMM d, yyyy');
-
-  // Hospital initial for logo placeholder
+  // Hospital initial for avatar
   const hospitalInitial = job.hospital_name.charAt(0).toUpperCase();
 
   return (
-    <div
+    <motion.div
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, delay: Math.min(index * 0.03, 0.6), ease: [0.25, 0.1, 0.25, 1] }}
       onClick={() => onCardClick?.(job)}
       className={`
-        relative bg-white border border-slate-900/10 cursor-pointer
+        relative cursor-pointer px-4 py-3.5
         transition-all duration-200 ease-out
-        hover:scale-[1.01] hover:shadow-[0_0_20px_rgba(0,122,126,0.08)]
         ${isSelected
-          ? 'border-teal shadow-[0_0_0_1px_#007A7E,0_0_20px_rgba(0,122,126,0.1)]'
-          : 'hover:border-slate-900/20'
+          ? 'bg-teal-50/60 border-l-[3px] border-l-teal'
+          : 'border-l-[3px] border-l-transparent hover:bg-slate-50/80'
         }
       `}
     >
-      <div className="p-4">
-        {/* Top Row: Logo + Title + Time */}
-        <div className="flex items-start gap-3 mb-3">
-          {/* Hospital Logo Placeholder */}
-          <div className="w-10 h-10 rounded-md bg-slate-100 border border-slate-200 flex items-center justify-center flex-shrink-0">
-            <Building2 className="w-5 h-5 text-slate-400" />
+      {/* Top: Hospital + County */}
+      <div className="flex items-center justify-between mb-1.5">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0">
+            <span className="text-xs font-semibold text-slate-500">{hospitalInitial}</span>
           </div>
-
-          <div className="flex-1 min-w-0">
-            <h3 className="text-[1.05rem] font-semibold text-slate-900 leading-snug line-clamp-2">
-              {job.title}
-            </h3>
-            <p className="text-xs text-slate-400 mt-0.5">{job.hospital_name}</p>
+          <p className="text-[13px] font-semibold text-apple-black truncate">
+            {job.hospital_name}
+          </p>
+        </div>
+        {hasContactInfo(job) && (
+          <div className="w-5 h-5 rounded-full bg-teal-50 flex items-center justify-center flex-shrink-0 ml-2" title="Informal enquiry available">
+            <Mail className="w-2.5 h-2.5 text-teal" />
           </div>
+        )}
+      </div>
 
-          {timePosted && (
-            <span className="text-[11px] text-slate-400 flex-shrink-0 whitespace-nowrap">
-              {timePosted}
-            </span>
-          )}
+      {/* Title */}
+      <h3 className="text-sm text-slate-600 leading-snug line-clamp-2 mb-2 pl-9">
+        {job.title}
+      </h3>
+
+      {/* Badges */}
+      <div className="flex items-center gap-1.5 flex-wrap pl-9 mb-2">
+        <span className="inline-flex items-center px-2 py-[3px] text-[10px] font-semibold bg-slate-700 text-white rounded-full tracking-wide">
+          {GRADE_LABELS[job.grade]}
+        </span>
+
+        <span className="inline-flex items-center px-2 py-[3px] text-[10px] font-medium bg-badge-specialty/10 text-badge-specialty rounded-full">
+          {SPECIALTY_LABELS[job.specialty]}
+        </span>
+
+        {matchRating && (
+          <span
+            className={`
+              inline-flex items-center gap-0.5 px-2 py-[3px] text-[10px] font-semibold rounded-full
+              ${matchRating === 'LIKELY_MATCH'
+                ? 'bg-badge-match-green/10 text-badge-match-green'
+                : matchRating === 'COMPETITIVE'
+                ? 'bg-badge-match-amber/10 text-badge-match-amber'
+                : 'bg-badge-match-red/10 text-badge-match-red'
+              }
+            `}
+            title={MATCH_RATING_CONFIG[matchRating].description}
+          >
+            <TrendingUp className="w-2.5 h-2.5" />
+            {MATCH_RATING_CONFIG[matchRating].label}
+          </span>
+        )}
+      </div>
+
+      {/* Footer: County + Deadline */}
+      <div className="flex items-center justify-between pl-9">
+        <div className="flex items-center gap-1 text-[11px] text-apple-secondary">
+          <MapPin className="w-3 h-3" />
+          <span>{job.county}</span>
         </div>
 
-        {/* Badge Row */}
-        <div className="flex items-center gap-1.5 flex-wrap mb-3">
-          {/* Grade Badge */}
-          <span className="inline-flex items-center px-2 py-0.5 text-[11px] font-medium bg-slate-600 text-white rounded">
-            {GRADE_LABELS[job.grade]}
+        <div className="flex items-center gap-1 text-[11px] text-apple-secondary">
+          <Clock className="w-3 h-3" />
+          <span>
+            {closingDate}
+            {hoursUntilDeadline <= 72 && hoursUntilDeadline > 0 && (
+              <span className={`ml-0.5 font-semibold ${
+                hoursUntilDeadline <= 48 ? 'text-deadline-critical' : 'text-deadline-warning'
+              }`}>
+                ({Math.floor(hoursUntilDeadline)}h)
+              </span>
+            )}
           </span>
-
-          {/* Specialty Badge */}
-          <span className="inline-flex items-center px-2 py-0.5 text-[11px] font-medium bg-badge-specialty/10 text-badge-specialty rounded">
-            {SPECIALTY_LABELS[job.specialty]}
-          </span>
-
-          {/* Match Badge */}
-          {matchRating && (
-            <span
-              className={`
-                inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium rounded
-                ${matchRating === 'LIKELY_MATCH'
-                  ? 'bg-badge-match-green/10 text-badge-match-green'
-                  : matchRating === 'COMPETITIVE'
-                  ? 'bg-badge-match-amber/10 text-badge-match-amber'
-                  : 'bg-badge-match-red/10 text-badge-match-red'
-                }
-              `}
-              title={MATCH_RATING_CONFIG[matchRating].description}
-            >
-              <TrendingUp className="w-3 h-3" />
-              {MATCH_RATING_CONFIG[matchRating].label}
-            </span>
-          )}
-        </div>
-
-        {/* Footer: Closing Date + Contact Icon */}
-        <div className="flex items-center justify-between pt-3 border-t border-slate-100">
-          <div className="flex items-center gap-1.5 text-xs text-slate-500">
-            <Clock className="w-3.5 h-3.5" />
-            <span>
-              Closes {closingDate}
-              {hoursUntilDeadline <= 72 && (
-                <span className={`ml-1 font-medium ${
-                  hoursUntilDeadline <= 48 ? 'text-deadline-critical' : 'text-deadline-warning'
-                }`}>
-                  ({Math.max(0, Math.floor(hoursUntilDeadline))}h left)
-                </span>
-              )}
-            </span>
-          </div>
-
-          {hasContactInfo(job) && (
-            <div className="w-6 h-6 rounded-full bg-teal-50 flex items-center justify-center" title="Informal enquiry available">
-              <Mail className="w-3 h-3 text-teal" />
-            </div>
-          )}
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }

@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 :root {
-  --background: #F9FAFB;
-  --foreground: #0F172A;
+  --background: #F5F5F7;
+  --foreground: #1D1D1F;
 }
 
 @theme inline {
@@ -11,12 +11,18 @@
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 
+  /* Apple-inspired palette */
+  --color-apple-black: #1D1D1F;
+  --color-apple-gray: #F5F5F7;
+  --color-apple-gray-dark: #E8E8ED;
+  --color-apple-secondary: #86868B;
+
   /* HSE Teal — primary action color */
   --color-teal: #007A7E;
   --color-teal-dark: #005F62;
   --color-teal-light: #00999E;
-  --color-teal-50: #EFFEFB;
-  --color-teal-100: #C6FFF5;
+  --color-teal-50: #F0FDFA;
+  --color-teal-100: #CCFBF1;
 
   /* Slate palette */
   --color-slate-50: #F8FAFC;
@@ -49,7 +55,7 @@
   --color-deadline-warning: #F59E0B;
   --color-deadline-normal: #10B981;
 
-  /* Kept for backwards compat in admin pages */
+  /* Kept for backwards compat in admin/login */
   --color-linkedin-blue: #007A7E;
   --color-linkedin-blue-dark: #005F62;
   --color-linkedin-blue-light: #00999E;
@@ -80,7 +86,9 @@ body {
   background: #94A3B8;
 }
 
-/* Radix Tabs */
-[data-radix-tabs-content] {
-  outline: none;
+/* Glass surface utility */
+.glass {
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
 }
