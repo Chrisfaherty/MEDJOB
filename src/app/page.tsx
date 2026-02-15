@@ -42,11 +42,13 @@ export default function Dashboard() {
   const [filters, setFilters] = useState<{
     specialties: SpecialtyType[];
     hospitalGroups: HospitalGroup[];
+    hospitals: string[];
     counties: string[];
     schemeTypes: SchemeType[];
   }>({
     specialties: [],
     hospitalGroups: [],
+    hospitals: [],
     counties: [],
     schemeTypes: [],
   });
@@ -108,11 +110,12 @@ export default function Dashboard() {
   };
 
   const clearFilters = () => {
-    setFilters({ specialties: [], hospitalGroups: [], counties: [], schemeTypes: [] });
+    setFilters({ specialties: [], hospitalGroups: [], hospitals: [], counties: [], schemeTypes: [] });
   };
 
   const uniqueSpecialties = Array.from(new Set(jobs.map(j => j.specialty)));
   const uniqueHospitalGroups = Array.from(new Set(jobs.map(j => j.hospital_group)));
+  const uniqueHospitals = Array.from(new Set(jobs.map(j => j.hospital_name))).sort();
   const uniqueCounties = Array.from(new Set(jobs.map(j => j.county))).sort();
   const uniqueSchemeTypes = Array.from(new Set(jobs.map(j => j.scheme_type)));
 
@@ -128,6 +131,7 @@ export default function Dashboard() {
     }
     if (filters.specialties.length && !filters.specialties.includes(job.specialty)) return false;
     if (filters.hospitalGroups.length && !filters.hospitalGroups.includes(job.hospital_group)) return false;
+    if (filters.hospitals.length && !filters.hospitals.includes(job.hospital_name)) return false;
     if (filters.counties.length && !filters.counties.includes(job.county)) return false;
     if (filters.schemeTypes.length && !filters.schemeTypes.includes(job.scheme_type)) return false;
     return true;
@@ -135,7 +139,7 @@ export default function Dashboard() {
 
   const activeFilterCount =
     filters.specialties.length + filters.hospitalGroups.length +
-    filters.counties.length + filters.schemeTypes.length;
+    filters.hospitals.length + filters.counties.length + filters.schemeTypes.length;
 
   // User initials for avatar
   const userInitials = user?.name
@@ -306,6 +310,18 @@ export default function Dashboard() {
                           label={HOSPITAL_GROUP_LABELS[g]}
                           active={filters.hospitalGroups.includes(g)}
                           onClick={() => toggleFilter('hospitalGroups', g)}
+                        />
+                      ))}
+                    </FilterSection>
+
+                    {/* Hospital */}
+                    <FilterSection label="Hospital">
+                      {uniqueHospitals.map(h => (
+                        <FilterChip
+                          key={h}
+                          label={h}
+                          active={filters.hospitals.includes(h)}
+                          onClick={() => toggleFilter('hospitals', h)}
                         />
                       ))}
                     </FilterSection>

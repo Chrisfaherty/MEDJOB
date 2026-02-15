@@ -15,7 +15,7 @@ import * as cheerio from 'cheerio';
 import type { Element } from 'domhandler';
 import { type ScrapedJob, type ScraperResult, delay } from './base';
 import { PlaywrightBaseScraper } from './playwright-base';
-import { matchHospital, matchHospitalByCounty, inferCounty } from './hospital-matcher';
+import { matchHospital, matchHospitalByCounty, inferCounty, inferCountyFromRefCode } from './hospital-matcher';
 import { getHospitalTier } from '@/lib/matchProbability';
 
 /** Known Rezoomo employer pages with medical jobs */
@@ -126,8 +126,11 @@ export class RezoomoScraper extends PlaywrightBaseScraper {
         let href = $a.attr('href') || '';
         if (!href.startsWith('http')) href = `https://www.rezoomo.com${href}`;
 
-        const county = inferCounty(title);
-        const hospital = matchHospital(title) || matchHospitalByCounty(county);
+        const searchText = `${title} ${source.name}`;
+        const county = inferCounty(searchText);
+        const hospital = matchHospital(searchText)
+          || matchHospitalByCounty(county)
+          || this.resolveSourceHospital(source.hospitalId);
         const hospitalName = hospital?.name || source.name;
 
         jobs.push({
@@ -137,7 +140,7 @@ export class RezoomoScraper extends PlaywrightBaseScraper {
           scheme_type: this.parseSchemeType(title),
           hospital_name: hospitalName,
           hospital_group: hospital?.hospitalGroup || 'IEHG',
-          county,
+          county: hospital?.county || county,
           application_deadline: this.defaultDeadline(),
           application_url: href,
           historical_centile_tier: getHospitalTier(hospitalName),
@@ -164,12 +167,17 @@ export class RezoomoScraper extends PlaywrightBaseScraper {
     if (url && !url.startsWith('http')) url = `https://www.rezoomo.com${url}`;
 
     const locationText = $el.find('[class*="location"], [class*="county"]').text();
-    const county = inferCounty(`${title} ${locationText}`);
+    // Include source name and title for better county/hospital inference
+    const searchText = `${title} ${locationText} ${source.name}`;
+    const county = inferCounty(searchText);
 
     const deadlineText = $el.find('[class*="date"], [class*="deadline"], time').text();
     const deadline = this.extractDate(deadlineText) || this.defaultDeadline();
 
-    const hospital = matchHospital(`${title} ${locationText}`) || matchHospitalByCounty(county);
+    // Try text matching first, then fall back to the source's known hospitalId
+    const hospital = matchHospital(searchText)
+      || matchHospitalByCounty(county)
+      || this.resolveSourceHospital(source.hospitalId);
     const hospitalName = hospital?.name || source.name;
 
     return {
@@ -179,7 +187,7 @@ export class RezoomoScraper extends PlaywrightBaseScraper {
       scheme_type: this.parseSchemeType(title),
       hospital_name: hospitalName,
       hospital_group: hospital?.hospitalGroup || 'IEHG',
-      county,
+      county: hospital?.county || county,
       application_deadline: deadline,
       application_url: url,
       historical_centile_tier: getHospitalTier(hospitalName),
@@ -209,6 +217,11 @@ export class RezoomoScraper extends PlaywrightBaseScraper {
       if (lower.includes(inc)) return true;
     }
     return false;
+  }
+
+  /** Resolve hospital from the source config's hospitalId */
+  private resolveSourceHospital(hospitalId: string): ReturnType<typeof matchHospital> {
+    return matchHospital(hospitalId);
   }
 
   private extractDate(text: string): string | null {

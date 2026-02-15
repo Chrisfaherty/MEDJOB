@@ -184,8 +184,9 @@ export class HSEScraper extends BaseScraper {
     const deadline = new Date(postedDate);
     deadline.setDate(deadline.getDate() + 21);
 
-    // Match hospital
-    const hospital = matchHospital(title) || matchHospitalByCounty(county);
+    // Match hospital — search title + location text, fall back to county
+    const searchText = `${title} ${locationText}`;
+    const hospital = matchHospital(searchText) || matchHospitalByCounty(county);
     const hospitalName = hospital?.name || 'HSE Facility';
     const hospitalGroup = hospital?.hospitalGroup || 'IEHG';
 
@@ -196,7 +197,7 @@ export class HSEScraper extends BaseScraper {
       scheme_type: this.parseSchemeType(title),
       hospital_name: hospitalName,
       hospital_group: hospitalGroup,
-      county,
+      county: hospital?.county || county,
       application_deadline: deadline.toISOString(),
       application_url: url,
       historical_centile_tier: getHospitalTier(hospitalName),
@@ -243,7 +244,8 @@ export class HSEScraper extends BaseScraper {
       const deadline = new Date(postedDate);
       deadline.setDate(deadline.getDate() + 21);
 
-      const hospital = matchHospital(title) || matchHospitalByCounty(county);
+      const searchText = `${title} ${contextText}`;
+      const hospital = matchHospital(searchText) || matchHospitalByCounty(county);
       const hospitalName = hospital?.name || 'HSE Facility';
 
       jobs.push({
@@ -253,7 +255,7 @@ export class HSEScraper extends BaseScraper {
         scheme_type: this.parseSchemeType(title),
         hospital_name: hospitalName,
         hospital_group: hospital?.hospitalGroup || 'IEHG',
-        county,
+        county: hospital?.county || county,
         application_deadline: deadline.toISOString(),
         application_url: href,
         historical_centile_tier: getHospitalTier(hospitalName),

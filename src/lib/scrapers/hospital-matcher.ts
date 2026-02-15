@@ -64,13 +64,15 @@ const HOSPITAL_ALIASES: Record<string, string> = {
   'kerry': 'uhk',
   'tralee': 'uhk',
 
-  // West
+  // West / Mid-West
   'uhg': 'uhg',
   'galway': 'uhg',
   'university hospital galway': 'uhg',
   'uhl': 'uhl',
   'limerick': 'uhl',
   'university hospital limerick': 'uhl',
+  'mid west': 'uhl',
+  'mid-west': 'uhl',
   'ennis': 'ennis',
   'nenagh': 'nenagh',
   'mayo': 'mayo',
@@ -92,14 +94,64 @@ const HOSPITAL_ALIASES: Record<string, string> = {
   'our lady of lourdes': 'drogheda',
   'cavan': 'cavan',
 
-  // Children's hospitals
-  'chi': 'mater', // CHI at Connolly/Crumlin/Temple St — map to Mater area
-  'crumlin': 'stjames', // Near St James's area
+  // Children's/Maternity hospitals
   'temple street': 'mater',
-  'rotunda': 'mater', // Maternity - RCSI group area
-  'holles street': 'stvincents', // National Maternity - near SVUH
-  'coombe': 'stjames', // Maternity - DMHG area
+  'rotunda': 'mater',
+  'holles street': 'stvincents',
+  'coombe': 'stjames',
+  'crumlin': 'stjames',
 };
+
+/**
+ * HSE job reference code prefixes map to regions/counties.
+ * Format: XX26YY## where XX = region prefix (2 letters at start of code).
+ * e.g. MW26ER3 → MW → Mid-West → Limerick
+ */
+const REF_CODE_PREFIX_TO_COUNTY: Record<string, string> = {
+  'mw': 'Limerick',   // Mid-West
+  'du': 'Dublin',
+  'dn': 'Dublin',     // Dublin North
+  'ds': 'Dublin',     // Dublin South
+  'do': 'Dublin',
+  'co': 'Cork',
+  'ga': 'Galway',
+  'ke': 'Kerry',
+  'wa': 'Waterford',
+  'sl': 'Sligo',
+  'dk': 'Donegal',    // Donegal/Letterkenny
+  'dl': 'Donegal',
+  'ca': 'Cavan',
+  'lo': 'Louth',      // Drogheda
+  'ki': 'Kilkenny',
+  'we': 'Wexford',
+  'la': 'Laois',      // Portlaoise
+  'wm': 'Westmeath',  // Mullingar
+  'kd': 'Kildare',    // Naas
+  'cl': 'Clare',      // Ennis
+  'tp': 'Tipperary',  // Nenagh
+  'ma': 'Mayo',
+  'ro': 'Roscommon',
+  'se': 'Waterford',  // South East
+  'ss': 'Cork',       // South/South West
+  'sw': 'Cork',
+  'ne': 'Louth',      // North East
+  'nw': 'Sligo',      // North West
+};
+
+/**
+ * Extract county from a HSE reference code embedded in text.
+ * Matches patterns like MW26ER3, DU26AB12, CO26XY5.
+ */
+export function inferCountyFromRefCode(text: string): string | null {
+  if (!text) return null;
+  // Match 2-letter prefix followed by 2-digit year and more alphanumeric chars
+  const match = text.match(/\b([A-Za-z]{2})\d{2}[A-Za-z]{1,3}\d{1,3}\b/);
+  if (match) {
+    const prefix = match[1].toLowerCase();
+    return REF_CODE_PREFIX_TO_COUNTY[prefix] || null;
+  }
+  return null;
+}
 
 /**
  * Match a hospital name/text to our canonical hospital database.
@@ -163,6 +215,7 @@ export function matchHospitalByCounty(county: string): MatchedHospital | null {
 
 /**
  * Infer county from text (title, location field, etc.)
+ * Checks: hospital name match → county name mention → reference code prefix → fallback.
  */
 export function inferCounty(text: string): string {
   if (!text) return 'Dublin';
@@ -185,6 +238,10 @@ export function inferCounty(text: string): string {
       return county;
     }
   }
+
+  // Try reference code prefix (e.g. MW26ER3 → Limerick)
+  const refCounty = inferCountyFromRefCode(text);
+  if (refCounty) return refCounty;
 
   return 'Dublin'; // Default fallback
 }
