@@ -4,7 +4,7 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
-import type { Job, UserApplication, ApplicationStatus } from '@/types/database.types';
+import type { Job, UserApplication, ApplicationStatus, AccommodationListing, AccommodationInquiry } from '@/types/database.types';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
@@ -451,5 +451,228 @@ export const supabaseUserAPI = {
       return false;
     }
     return true;
+  },
+};
+
+// =====================================================
+// ACCOMMODATION API
+// =====================================================
+
+export const supabaseAccommodationAPI = {
+  /**
+   * Get all active listings
+   */
+  async getActiveListings(): Promise<AccommodationListing[]> {
+    const { data, error } = await supabase
+      .from('accommodation_listings')
+      .select('*, user_profiles(name)')
+      .eq('is_active', true)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return (data || []).map((d: any) => ({
+      ...d,
+      poster_name: d.user_profiles?.name || 'Anonymous',
+      user_profiles: undefined,
+    })) as AccommodationListing[];
+  },
+
+  /**
+   * Get listing by ID
+   */
+  async getListingById(id: string): Promise<AccommodationListing | null> {
+    const { data, error } = await supabase
+      .from('accommodation_listings')
+      .select('*, user_profiles(name)')
+      .eq('id', id)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') return null;
+      throw error;
+    }
+    return {
+      ...data,
+      poster_name: (data as any).user_profiles?.name || 'Anonymous',
+      user_profiles: undefined,
+    } as AccommodationListing;
+  },
+
+  /**
+   * Get listings by hospital
+   */
+  async getListingsByHospital(hospitalId: string): Promise<AccommodationListing[]> {
+    const { data, error } = await supabase
+      .from('accommodation_listings')
+      .select('*, user_profiles(name)')
+      .eq('is_active', true)
+      .eq('hospital_id', hospitalId)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return (data || []).map((d: any) => ({
+      ...d,
+      poster_name: d.user_profiles?.name || 'Anonymous',
+      user_profiles: undefined,
+    })) as AccommodationListing[];
+  },
+
+  /**
+   * Get listings by county
+   */
+  async getListingsByCounty(county: string): Promise<AccommodationListing[]> {
+    const { data, error } = await supabase
+      .from('accommodation_listings')
+      .select('*, user_profiles(name)')
+      .eq('is_active', true)
+      .eq('county', county)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return (data || []).map((d: any) => ({
+      ...d,
+      poster_name: d.user_profiles?.name || 'Anonymous',
+      user_profiles: undefined,
+    })) as AccommodationListing[];
+  },
+
+  /**
+   * Get current user's listings
+   */
+  async getUserListings(): Promise<AccommodationListing[]> {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) throw new Error('Not authenticated');
+
+    const { data, error } = await supabase
+      .from('accommodation_listings')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return (data || []) as AccommodationListing[];
+  },
+
+  /**
+   * Create a new listing
+   */
+  async createListing(listing: Omit<AccommodationListing, 'id' | 'created_at' | 'updated_at' | 'is_active' | 'poster_name'>): Promise<AccommodationListing> {
+    const { data, error } = await supabase
+      .from('accommodation_listings')
+      .insert(listing)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data as AccommodationListing;
+  },
+
+  /**
+   * Update a listing
+   */
+  async updateListing(id: string, updates: Partial<AccommodationListing>): Promise<AccommodationListing> {
+    const { data, error } = await supabase
+      .from('accommodation_listings')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data as AccommodationListing;
+  },
+
+  /**
+   * Soft delete a listing
+   */
+  async deleteListing(id: string): Promise<void> {
+    const { error } = await supabase
+      .from('accommodation_listings')
+      .update({ is_active: false })
+      .eq('id', id);
+
+    if (error) throw error;
+  },
+
+  /**
+   * Upload a photo to accommodation-photos bucket
+   */
+  async uploadPhoto(file: File): Promise<string> {
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+    const filePath = `listings/${fileName}`;
+
+    const { error } = await supabase.storage
+      .from('accommodation-photos')
+      .upload(filePath, file, {
+        cacheControl: '3600',
+        upsert: false,
+      });
+
+    if (error) throw error;
+
+    const { data: urlData } = supabase.storage
+      .from('accommodation-photos')
+      .getPublicUrl(filePath);
+
+    return urlData.publicUrl;
+  },
+
+  /**
+   * Delete a photo from storage
+   */
+  async deletePhoto(url: string): Promise<void> {
+    const path = url.split('/accommodation-photos/')[1];
+    if (!path) return;
+
+    const { error } = await supabase.storage
+      .from('accommodation-photos')
+      .remove([path]);
+
+    if (error) throw error;
+  },
+
+  /**
+   * Send an inquiry about a listing
+   */
+  async sendInquiry(listingId: string, message: string): Promise<AccommodationInquiry> {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) throw new Error('Not authenticated');
+
+    const { data, error } = await supabase
+      .from('accommodation_inquiries')
+      .insert({
+        listing_id: listingId,
+        sender_id: user.id,
+        message,
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data as AccommodationInquiry;
+  },
+
+  /**
+   * Get inquiries for a listing (listing owner)
+   */
+  async getInquiriesForListing(listingId: string): Promise<AccommodationInquiry[]> {
+    const { data, error } = await supabase
+      .from('accommodation_inquiries')
+      .select('*, user_profiles(name, email)')
+      .eq('listing_id', listingId)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return (data || []).map((d: any) => ({
+      ...d,
+      sender_name: d.user_profiles?.name || 'Anonymous',
+      sender_email: d.user_profiles?.email,
+      user_profiles: undefined,
+    })) as AccommodationInquiry[];
   },
 };

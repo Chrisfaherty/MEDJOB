@@ -6,6 +6,7 @@ import {
   SlidersHorizontal,
   TrendingUp,
   Briefcase,
+  Home,
   LogOut,
   ChevronLeft,
   X,
@@ -14,6 +15,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import JobCard from '@/components/JobCard';
 import DetailView from '@/components/DetailView';
 import LoginModal from '@/components/LoginModal';
+import AccommodationSection from '@/components/accommodation/AccommodationSection';
 import type { Job, SpecialtyType, HospitalGroup, SchemeType } from '@/types/database.types';
 import {
   SPECIALTY_LABELS,
@@ -26,6 +28,7 @@ import { useAuth } from '@/contexts/AuthContext';
 export default function Dashboard() {
   const { user, loading: authLoading, signOut } = useAuth();
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [activeSection, setActiveSection] = useState<'jobs' | 'accommodation'>('jobs');
 
   // Data state
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -177,7 +180,36 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Center: Centile Input */}
+          {/* Center: Section Tabs + Centile */}
+          <div className="flex items-center gap-3">
+            {/* Section Switcher */}
+            <div className="flex bg-slate-100/80 rounded-xl p-0.5">
+              <button
+                onClick={() => setActiveSection('jobs')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-semibold rounded-lg transition-all duration-200 ${
+                  activeSection === 'jobs'
+                    ? 'bg-white text-apple-black shadow-sm'
+                    : 'text-apple-secondary hover:text-apple-black'
+                }`}
+              >
+                <Briefcase className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Jobs</span>
+              </button>
+              <button
+                onClick={() => setActiveSection('accommodation')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-semibold rounded-lg transition-all duration-200 ${
+                  activeSection === 'accommodation'
+                    ? 'bg-white text-apple-black shadow-sm'
+                    : 'text-apple-secondary hover:text-apple-black'
+                }`}
+              >
+                <Home className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Accommodation</span>
+              </button>
+            </div>
+
+            {/* Centile Input — only show for jobs */}
+            {activeSection === 'jobs' && (
           <div className="hidden sm:flex items-center gap-2 bg-white/60 border border-slate-200/80 rounded-xl px-3 py-1.5 shadow-card">
             <TrendingUp className="w-3.5 h-3.5 text-teal" />
             <input
@@ -191,6 +223,8 @@ export default function Dashboard() {
             />
             {userCentile && (
               <span className="text-[11px] font-semibold text-teal">{userCentile}th</span>
+            )}
+          </div>
             )}
           </div>
 
@@ -213,7 +247,8 @@ export default function Dashboard() {
         </div>
       </header>
 
-      {/* Main: Master-Detail Layout */}
+      {/* Main Content — conditional on activeSection */}
+      {activeSection === 'jobs' ? (
       <div className="flex-1 flex overflow-hidden">
         {/* Left Sidebar */}
         <aside className={`w-full lg:w-[380px] lg:min-w-[380px] flex flex-col border-r border-slate-200/60 bg-white/50 ${
@@ -421,6 +456,9 @@ export default function Dashboard() {
           )}
         </main>
       </div>
+      ) : (
+        <AccommodationSection />
+      )}
     </div>
   );
 }

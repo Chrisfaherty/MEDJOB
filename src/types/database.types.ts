@@ -214,3 +214,59 @@ export const MATCH_RATING_CONFIG: Record<
     description: 'Your centile is below typical cutoff',
   },
 };
+
+// =====================================================
+// ACCOMMODATION TYPES
+// =====================================================
+
+export type RoomType = 'entire_place' | 'private_room' | 'shared_room';
+
+export interface AccommodationListing {
+  id: string;
+  user_id: string;
+  title: string;
+  description?: string;
+  room_type: RoomType;
+  rent_per_month: number;
+  bills_included: boolean;
+  deposit?: number;
+  address_line?: string;
+  county: string;
+  eircode?: string;
+  latitude?: number;
+  longitude?: number;
+  hospital_id: string;
+  hospital_name: string;
+  available_from: string;
+  available_to?: string;
+  min_lease_months?: number;
+  photo_urls: string[];
+  amenities: string[];
+  contact_email: string;
+  contact_phone?: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  poster_name?: string;
+}
+
+export interface AccommodationInquiry {
+  id: string;
+  listing_id: string;
+  sender_id: string;
+  message: string;
+  created_at: string;
+  sender_name?: string;
+  sender_email?: string;
+}
+
+export const ROOM_TYPE_LABELS: Record<RoomType, string> = {
+  entire_place: 'Entire Place',
+  private_room: 'Private Room',
+  shared_room: 'Shared Room',
+};
+
+export const AMENITY_OPTIONS = [
+  'furnished', 'parking', 'wifi', 'washer', 'dryer',
+  'dishwasher', 'garden', 'balcony', 'ensuite', 'bills_included',
+] as const;
