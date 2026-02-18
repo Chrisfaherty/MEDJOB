@@ -60,19 +60,6 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
     }
   };
 
-  const handleDemoLogin = async () => {
-    setLoading(true);
-    setError('');
-    try {
-      await signIn('intern.demo@hse.ie');
-      onClose();
-    } catch (err) {
-      setError((err as Error).message || 'Demo login failed');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const resetForm = () => {
     setEmail('');
     setPassword('');
@@ -288,28 +275,6 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                 </div>
               )}
             </form>
-          )}
-
-          {/* Demo login */}
-          {mode === 'signin' && !resetSent && (
-            <>
-              <div className="relative my-5">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-slate-200/60"></div>
-                </div>
-                <div className="relative flex justify-center">
-                  <span className="px-3 bg-white text-[11px] text-apple-secondary uppercase tracking-wider font-medium">Or</span>
-                </div>
-              </div>
-
-              <button
-                onClick={handleDemoLogin}
-                disabled={loading}
-                className="w-full py-3 border border-slate-200/80 text-slate-600 text-[13px] font-semibold rounded-xl hover:bg-apple-gray/50 transition-colors disabled:opacity-50 tracking-wide"
-              >
-                DEMO ACCOUNT
-              </button>
-            </>
           )}
 
           {/* Info */}

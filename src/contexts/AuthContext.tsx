@@ -29,18 +29,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const useSupabase = isSupabaseAuthConfigured();
 
   useEffect(() => {
-    // Always check localStorage first for a demo/local user
-    const localUser = localUserAPI.getCurrentUser();
-    if (localUser) {
-      setUser(localUser);
-      isDemoRef.current = true;
-      setLoading(false);
-      return;
-    }
-
     if (useSupabase) {
+      // When Supabase is configured, clear any leftover localStorage demo users
+      // and use only Supabase sessions for authentication
+      localUserAPI.logout();
       initializeSupabaseAuth();
     } else {
+      // Local/dev mode: check localStorage for a local user
+      const localUser = localUserAPI.getCurrentUser();
+      if (localUser) {
+        setUser(localUser);
+        isDemoRef.current = true;
+      }
       setLoading(false);
     }
   }, [useSupabase]);
@@ -85,12 +85,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signIn = async (email: string, password?: string) => {
-    if (useSupabase && password) {
+    if (useSupabase) {
+      if (!password) throw new Error('Password is required');
       await authService.signIn(email, password);
       isDemoRef.current = false;
       await loadUserProfile();
     } else {
-      // Demo / localStorage login
+      // Local dev mode — localStorage login
       const user = await localUserAPI.login(email);
       isDemoRef.current = true;
       setUser(user);
@@ -99,17 +100,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signUp = async (email: string, password: string, name: string) => {
     if (useSupabase) {
-      const result = await authService.signUp(email, password, name);
-      // Supabase may require email confirmation — log in as demo in the meantime
+      await authService.signUp(email, password, name);
       const session = await authService.getSession();
       if (session) {
         isDemoRef.current = false;
         await loadUserProfile();
       } else {
-        // No session yet (email confirmation pending) — use localStorage
-        const user = await localUserAPI.login(email);
-        isDemoRef.current = true;
-        setUser(user);
+        // Email confirmation required — don't auto-login
+        throw new Error('Please check your email to confirm your account before signing in.');
       }
     } else {
       const user = await localUserAPI.login(email);

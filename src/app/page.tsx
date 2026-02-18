@@ -84,7 +84,6 @@ export default function Dashboard() {
 
   const handleLogout = async () => {
     await signOut();
-    setShowLoginModal(true);
   };
 
   const handleFavoriteToggle = async (jobId: string) => {
