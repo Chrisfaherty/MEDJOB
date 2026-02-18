@@ -463,13 +463,28 @@ export const supabaseAccommodationAPI = {
    * Get all active listings
    */
   async getActiveListings(): Promise<AccommodationListing[]> {
+    // Try join with user_profiles (requires direct FK); fall back to plain select
     const { data, error } = await supabase
       .from('accommodation_listings')
       .select('*, user_profiles(name)')
       .eq('is_active', true)
       .order('created_at', { ascending: false });
 
-    if (error) throw error;
+    if (error) {
+      // If the join fails (no FK relationship detected), fetch without join
+      const { data: fallbackData, error: fallbackError } = await supabase
+        .from('accommodation_listings')
+        .select('*')
+        .eq('is_active', true)
+        .order('created_at', { ascending: false });
+
+      if (fallbackError) throw fallbackError;
+      return (fallbackData || []).map((d: any) => ({
+        ...d,
+        poster_name: 'Anonymous',
+      })) as AccommodationListing[];
+    }
+
     return (data || []).map((d: any) => ({
       ...d,
       poster_name: d.user_profiles?.name || 'Anonymous',
@@ -489,7 +504,17 @@ export const supabaseAccommodationAPI = {
 
     if (error) {
       if (error.code === 'PGRST116') return null;
-      throw error;
+      // Fallback without join
+      const { data: fallbackData, error: fallbackError } = await supabase
+        .from('accommodation_listings')
+        .select('*')
+        .eq('id', id)
+        .single();
+      if (fallbackError) {
+        if (fallbackError.code === 'PGRST116') return null;
+        throw fallbackError;
+      }
+      return { ...fallbackData, poster_name: 'Anonymous' } as AccommodationListing;
     }
     return {
       ...data,
@@ -509,7 +534,16 @@ export const supabaseAccommodationAPI = {
       .eq('hospital_id', hospitalId)
       .order('created_at', { ascending: false });
 
-    if (error) throw error;
+    if (error) {
+      const { data: fb, error: fbErr } = await supabase
+        .from('accommodation_listings')
+        .select('*')
+        .eq('is_active', true)
+        .eq('hospital_id', hospitalId)
+        .order('created_at', { ascending: false });
+      if (fbErr) throw fbErr;
+      return (fb || []).map((d: any) => ({ ...d, poster_name: 'Anonymous' })) as AccommodationListing[];
+    }
     return (data || []).map((d: any) => ({
       ...d,
       poster_name: d.user_profiles?.name || 'Anonymous',
@@ -528,7 +562,16 @@ export const supabaseAccommodationAPI = {
       .eq('county', county)
       .order('created_at', { ascending: false });
 
-    if (error) throw error;
+    if (error) {
+      const { data: fb, error: fbErr } = await supabase
+        .from('accommodation_listings')
+        .select('*')
+        .eq('is_active', true)
+        .eq('county', county)
+        .order('created_at', { ascending: false });
+      if (fbErr) throw fbErr;
+      return (fb || []).map((d: any) => ({ ...d, poster_name: 'Anonymous' })) as AccommodationListing[];
+    }
     return (data || []).map((d: any) => ({
       ...d,
       poster_name: d.user_profiles?.name || 'Anonymous',
@@ -667,7 +710,15 @@ export const supabaseAccommodationAPI = {
       .eq('listing_id', listingId)
       .order('created_at', { ascending: false });
 
-    if (error) throw error;
+    if (error) {
+      const { data: fb, error: fbErr } = await supabase
+        .from('accommodation_inquiries')
+        .select('*')
+        .eq('listing_id', listingId)
+        .order('created_at', { ascending: false });
+      if (fbErr) throw fbErr;
+      return (fb || []).map((d: any) => ({ ...d, sender_name: 'Anonymous' })) as AccommodationInquiry[];
+    }
     return (data || []).map((d: any) => ({
       ...d,
       sender_name: d.user_profiles?.name || 'Anonymous',

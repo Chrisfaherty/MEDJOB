@@ -61,6 +61,7 @@ async function compressImage(file: File, maxWidth = 1200, quality = 0.8): Promis
     const ctx = canvas.getContext('2d');
 
     img.onload = () => {
+      URL.revokeObjectURL(img.src);
       let { width, height } = img;
       if (width > maxWidth) {
         height = (height * maxWidth) / width;

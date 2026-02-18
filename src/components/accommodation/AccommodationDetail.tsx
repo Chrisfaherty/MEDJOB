@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { motion } from 'framer-motion';
 import {
@@ -61,8 +61,17 @@ export default function AccommodationDetail({
   const [inquiryMessage, setInquiryMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
+  const [inquiryError, setInquiryError] = useState('');
   const [copied, setCopied] = useState(false);
   const [activePhoto, setActivePhoto] = useState(0);
+
+  // Reset photo index when listing changes to prevent out-of-bounds access
+  useEffect(() => {
+    setActivePhoto(0);
+    setSent(false);
+    setInquiryError('');
+    setInquiryMessage('');
+  }, [listing.id]);
 
   const hasPhotos = listing.photo_urls && listing.photo_urls.length > 0;
   const availableFrom = format(new Date(listing.available_from), 'MMMM d, yyyy');
@@ -71,13 +80,14 @@ export default function AccommodationDetail({
   const handleSendInquiry = async () => {
     if (!inquiryMessage.trim() || !onSendInquiry) return;
     setSending(true);
+    setInquiryError('');
     try {
       await onSendInquiry(listing.id, inquiryMessage);
       setSent(true);
       setInquiryMessage('');
       setTimeout(() => setSent(false), 3000);
     } catch {
-      // Error handling is done in parent
+      setInquiryError('Failed to send enquiry. Please try again.');
     } finally {
       setSending(false);
     }
@@ -290,8 +300,8 @@ export default function AccommodationDetail({
             className="w-full h-20 text-[13px] bg-white border border-slate-200/60 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-teal/20 focus:border-teal/40 placeholder:text-slate-400 resize-none transition-all"
           />
           <div className="flex items-center justify-between mt-2">
-            <p className="text-[10px] text-apple-secondary">
-              {sent ? 'Enquiry sent!' : 'Your message will be sent to the listing owner'}
+            <p className={`text-[10px] ${inquiryError ? 'text-red-500 font-medium' : 'text-apple-secondary'}`}>
+              {inquiryError || (sent ? 'Enquiry sent!' : 'Your message will be sent to the listing owner')}
             </p>
             <button
               onClick={handleSendInquiry}
