@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Mail, X, Briefcase, Lock, User } from 'lucide-react';
+import { Mail, X, Stethoscope, Lock, User } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
 import { isSupabaseAuthConfigured } from '@/lib/auth';
@@ -99,7 +99,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
               <div className="w-11 h-11 bg-teal rounded-2xl flex items-center justify-center shadow-sm">
-                <Briefcase className="w-5 h-5 text-white" />
+                <Stethoscope className="w-5 h-5 text-white" />
               </div>
               <div>
                 <h2 className="text-lg font-bold text-apple-black">

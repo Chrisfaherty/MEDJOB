@@ -1,352 +1,556 @@
-# 🏥 MedMatch-IE - The Intern's Transition Tool
+# MedMatch-IE
 
-**A hyper-specific job aggregator for Medical Interns in Ireland transitioning to SHO/Registrar roles for the July 2026 rotation.**
+**The all-in-one platform for Irish NCHD doctors to find jobs, track applications, and swap accommodation during hospital rotations.**
 
-## 🎯 Project Overview
+MedMatch-IE aggregates Non-Consultant Hospital Doctor (NCHD) job postings from across Ireland's health service, provides intelligent match probability ratings, automates informal enquiry contacts, and includes a peer-to-peer accommodation exchange for interns rotating between hospitals every 6 months.
 
-MedMatch-IE is designed specifically for current medical interns in Ireland who need to make critical career decisions about their next rotation. The platform aggregates opportunities from multiple sources and presents them with an "intern-lens" - focusing on the data that truly matters when choosing your next post.
-
-### Key Features
-
-- **Dual-Stream Aggregation**: Tracks both HSE National Recruitment Service (NRS) campaigns and direct hospital hires
-- **Logistics-First Design**: Filter by hospital groups, counties, and commute considerations
-- **Career-Critical Data**: Highlights training vs non-training posts, rotational details, and clinical leads
-- **LinkedIn-Style UI**: Clean, professional interface optimized for quick decision-making
-- **Deadline Management**: Smart countdown timers and 48-hour warnings for applications
-- **Status Tracking**: Mark jobs as Applied, Interview Offered, or Shortlisted
-
-### ✨ What's Working Right Now
-
-The app is **production-ready** and includes:
-
-- **🏃 Works Immediately**: No database setup required - uses browser localStorage
-- **📦 Sample Data**: 10 realistic job postings with dynamic deadlines
-- **🔐 Simple Login**: Email-only authentication (no password needed)
-- **🔍 Smart Filters**: Filter by specialty, hospital group, county, scheme type
-- **📊 Detailed Views**: Click any job to see full details in right panel
-- **🔔 Deadline Alerts**: Notification dropdown with urgency-based badges
-- **✅ Status Tracking**: Track applications (Applied, Interview, Shortlisted)
-- **🎨 Beautiful UI**: LinkedIn-inspired design with professional aesthetics
-- **📱 Fully Responsive**: Works on desktop, tablet, and mobile
-
-**Ready to deploy to Vercel in under 60 seconds!**
-
-## 🚀 Tech Stack
-
-- **Framework**: Next.js 15 with App Router & TypeScript
-- **Styling**: Tailwind CSS (LinkedIn-inspired palette)
-- **Database**: Supabase (PostgreSQL)
-- **Date Handling**: date-fns
-- **Icons**: Lucide React
-- **State Management**: Zustand
-- **Web Scraping**: Playwright (for future implementation)
-- **PDF Parsing**: Claude API integration (optional premium feature)
-
-## 📋 Prerequisites
-
-- Node.js 18+ and npm
-- **Optional**: A Supabase account (free tier works) for production data
-- **Optional**: Anthropic API key for PDF parsing
-
-## 🚀 Quick Start (No Setup Required!)
-
-The app works immediately with **local storage** - no database setup needed:
-
-```bash
-git clone https://github.com/Chrisfaherty/MEDJOB.git
-cd medjob
-npm install
-npm run dev
-```
-
-Open [http://localhost:3000](http://localhost:3000) and click **"Try Demo Account"** to start exploring with sample data.
-
-All your data is stored locally in your browser using localStorage. Perfect for testing and personal use!
-
-## 🛠️ Full Installation (with Supabase)
-
-For production use with persistent cloud storage:
-
-### 1. Clone the Repository
-
-```bash
-git clone https://github.com/Chrisfaherty/MEDJOB.git
-cd medjob
-npm install
-```
-
-### 2. Set Up Supabase (Optional)
-
-1. Create a new project at [supabase.com](https://supabase.com)
-2. Run the SQL schema from `supabase/schema.sql` in the SQL Editor
-3. Copy your project URL and anon key
-
-### 3. Configure Environment Variables
-
-```bash
-cp .env.example .env.local
-```
-
-Edit `.env.local` with your Supabase credentials:
-
-```env
-NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here
-```
-
-### 4. Run Development Server
-
-```bash
-npm run dev
-```
-
-Open [http://localhost:3000](http://localhost:3000) to view the app.
-
-## 🌐 Deployment
-
-### Deploy to Vercel (Recommended)
-
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/Chrisfaherty/MEDJOB)
-
-Or manually:
-
-```bash
-npm install -g vercel
-vercel
-```
-
-The app works immediately without any environment variables. Add Supabase credentials later in the Vercel dashboard for cloud storage.
-
-### Environment Variables for Production
-
-In your Vercel project settings, add:
-
-- `NEXT_PUBLIC_SUPABASE_URL` - Your Supabase project URL
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY` - Your Supabase anon key
-- `ANTHROPIC_API_KEY` - (Optional) For PDF parsing feature
-
-## 📁 Project Structure
-
-```
-medjob/
-├── src/
-│   ├── app/
-│   │   ├── page.tsx              # Main dashboard with auth, filters, notifications
-│   │   ├── layout.tsx            # Root layout
-│   │   └── globals.css           # Global styles
-│   ├── components/
-│   │   ├── JobCard.tsx           # Job listing card component
-│   │   └── LoginModal.tsx        # Email-only authentication modal
-│   ├── lib/
-│   │   ├── supabase.ts           # Supabase client & API functions
-│   │   ├── localStorage.ts       # Local storage system (works without Supabase!)
-│   │   ├── pdfParser.ts          # HSE job spec PDF parser
-│   │   └── deadlineNotifications.ts  # Deadline alert system
-│   ├── types/
-│   │   └── database.types.ts     # TypeScript type definitions
-│   └── data/
-│       ├── hospitals.json        # Irish hospital mapping (50+ hospitals)
-│       └── sampleJobs.ts         # 10 realistic sample jobs for demo
-├── supabase/
-│   └── schema.sql                # Database schema
-├── tailwind.config.ts            # Tailwind configuration
-├── .env.example                  # Environment variables template
-└── package.json
-```
-
-## 🗄️ Database Schema
-
-The Supabase database includes:
-
-- **jobs** - NCHD job postings with full details
-- **user_applications** - Track application status per user
-- **user_preferences** - Saved filters and notification settings
-- **scraping_logs** - Track scraper runs and data freshness
-
-### Key Enums
-
-- `nchd_grade`: SHO, REGISTRAR, SPECIALIST_REGISTRAR
-- `specialty_type`: 20+ medical specialties
-- `scheme_type`: TRAINING_BST, TRAINING_HST, NON_TRAINING_SERVICE
-- `hospital_group`: IEHG, DMHG, RCSI, SAOLTA, SSWHG, MWHG, UL
-
-## 🏥 Hospital Network Mapping
-
-The app includes a comprehensive mapping of 50+ Irish hospitals to their:
-
-- Hospital Group (e.g., IEHG, RCSI, Saolta)
-- Intern Training Network
-- County & City
-- Teaching Hospital Status
-- Affiliated University
-
-This enables powerful filtering like:
-- "Show me all posts in Dublin North"
-- "Find training schemes in teaching hospitals"
-- "Filter by RCSI Hospital Group"
-
-## 🎨 UI Design Philosophy
-
-### LinkedIn-Inspired Aesthetic
-
-- **Color Palette**: Slate/Blue/White (professional, medical-appropriate)
-- **Typography**: Clean, readable fonts optimized for scanning
-- **Cards**: Shadow-based elevation with hover states
-- **Status Colors**: Green (Applied), Amber (Interview), Purple (Shortlisted)
-
-### Dual-Pane Layout
-
-- **Left Pane**: Scrollable job cards with countdown timers
-- **Right Pane**: Detailed job view with full specifications
-
-## 📅 Deadline Management
-
-The system includes intelligent deadline tracking:
-
-```typescript
-// Urgency Levels
-- Critical: < 48 hours (Red badge, browser notifications)
-- Warning: 2-7 days (Amber badge, daily digests)
-- Normal: > 7 days (Green badge)
-```
-
-### Notification Strategy
-
-- **48-hour warnings**: Browser push notifications
-- **Daily digests**: Email summaries of upcoming deadlines
-- **Status integration**: Only notify for jobs you haven't applied to
-
-## 🔍 PDF Parser
-
-The optional PDF parser extracts key information from HSE Job Specification PDFs:
-
-- Informal Enquiries email (crucial for "scoping out" departments)
-- Clinical Lead/Consultant name
-- Closing date
-- Rotational detail (e.g., "6 months Cardiology / 6 months Respiratory")
-
-### Usage
-
-```typescript
-import { parseWithClaude } from '@/lib/pdfParser';
-
-const pdfUrl = 'https://hse.ie/jobs/spec/12345.pdf';
-const parsed = await fetchAndParsePDF(pdfUrl);
-console.log(parsed.informalEnquiriesEmail); // "consultant@hse.ie"
-```
-
-## 🤖 Features & Roadmap
-
-### ✅ Phase 1: Core Functionality (COMPLETE)
-- [x] Database schema
-- [x] Job card component with deadline countdown
-- [x] Dual-pane dashboard layout
-- [x] Deadline notifications with urgency levels
-- [x] Hospital mapping (50+ hospitals)
-- [x] **Local storage system** (works without Supabase!)
-- [x] **Sample data** (10 realistic jobs)
-- [x] **Email-only authentication** (no password required)
-- [x] **Filter system** (specialty, hospital group, county, scheme type)
-- [x] **Detailed job view panel**
-- [x] **Notification dropdown UI**
-- [x] **Application status tracking**
-- [x] **Search functionality**
-
-### 🚧 Phase 2: Data Aggregation (Planned)
-- [ ] HSE NRS scraper (Playwright)
-- [ ] Rezoomo scraper
-- [ ] about.hse.ie scraper
-- [ ] Automated daily scraping cron job
-
-### 📋 Phase 3: Premium Features (Planned)
-- [x] PDF parsing with Claude API (implemented, needs API key)
-- [ ] Email notifications (SMTP integration)
-- [ ] Enhanced user authentication (Supabase Auth)
-- [ ] Saved searches & filters
-- [ ] Application timeline tracking
-
-### 🎯 Phase 4: Advanced (Future)
-- [ ] Interview scheduler
-- [ ] Contract comparison tool
-- [ ] Salary calculator (with IMO pay scales)
-- [ ] Colleague finder (who else is applying)
-
-## 🧪 Development Notes
-
-### Adding New Hospitals
-
-Edit `src/data/hospitals.json`:
-
-```json
-{
-  "id": "newhos",
-  "name": "New Hospital",
-  "shortName": "NewHosp",
-  "county": "Cork",
-  "hospitalGroup": "SSWHG",
-  "internNetwork": "CORK",
-  "location": { "city": "Cork", "lat": 51.8969, "lng": -8.4863 },
-  "isTeachingHospital": false,
-  "university": null
-}
-```
-
-### Adding New Specialties
-
-Update `src/types/database.types.ts`:
-
-1. Add to `SpecialtyType` union
-2. Add to `SPECIALTY_LABELS` object
-3. Update Supabase enum: `ALTER TYPE specialty_type ADD VALUE 'NEW_SPECIALTY'`
-
-## 📝 Contributing
-
-This is a specialized tool for Irish medical interns. Contributions welcome, especially:
-
-- Hospital data corrections
-- Scraper improvements
-- UI/UX enhancements
-- Bug fixes
-
-## 📄 License
-
-MIT License - see LICENSE file
-
-## 🆘 Support & Feedback
-
-- **Issues**: Report bugs via [GitHub Issues](https://github.com/Chrisfaherty/MEDJOB/issues)
-- **Feature Requests**: Open a discussion in GitHub
-- **Contact**: For intern-specific queries about using the tool
-
-## 🎓 For Medical Interns
-
-### How to Use This Tool
-
-1. **Set up your account** (coming soon - auth feature)
-2. **Configure your preferences**: Specialties you're interested in, counties you can work in
-3. **Browse jobs**: Use filters to find posts that match your needs
-4. **Track applications**: Mark posts as you apply
-5. **Stay on top of deadlines**: Enable notifications to never miss a closing date
-
-### The July 2026 Context
-
-This tool is specifically designed for the July 13, 2026 changeover date. Key dates:
-
-- **March-April 2026**: National schemes open (BST, HST)
-- **April-June 2026**: Individual hospital posts advertised
-- **May-June 2026**: Interview season
-- **June 2026**: Contract offers
-- **July 13, 2026**: Changeover day
-
-### Critical Data Points to Consider
-
-1. **Training vs Non-Training**: Will this count toward specialization?
-2. **Rotational Detail**: What sub-specialties will you cover?
-3. **Hospital Group**: Affects leave policies, on-call arrangements
-4. **Location**: Commute time, accommodation options
-5. **Clinical Lead**: Research their team before applying
-6. **Informal Enquiries**: Always email before applying
+![Dashboard Overview](docs/screenshots/dashboard-overview.png)
 
 ---
 
-**Built for interns, by someone who understands the stress of July rotation applications. Good luck! 🍀**
+## Table of Contents
+
+- [Features](#features)
+  - [Job Aggregation & Smart Scraping](#1-job-aggregation--smart-scraping)
+  - [Match Probability Engine](#2-match-probability-engine)
+  - [Informal Enquiry Automation](#3-informal-enquiry-automation)
+  - [Accommodation Exchange](#4-accommodation-exchange)
+  - [Authentication & User Profiles](#5-authentication--user-profiles)
+  - [Admin Panel](#6-admin-panel)
+- [Tech Stack](#tech-stack)
+- [Architecture](#architecture)
+- [Getting Started](#getting-started)
+- [Environment Variables](#environment-variables)
+- [Database Setup](#database-setup)
+- [Deployment](#deployment)
+- [Scraper Configuration](#scraper-configuration)
+- [Project Structure](#project-structure)
+
+---
+
+## Features
+
+### 1. Job Aggregation & Smart Scraping
+
+MedMatch-IE automatically scrapes NCHD job postings from 4 Irish healthcare recruitment sources daily, deduplicates them, and presents them in a unified interface.
+
+![Job Listings](docs/screenshots/job-listings.png)
+
+**Sources scraped:**
+
+| Source | Method | Schedule |
+|--------|--------|----------|
+| HSE (about.hse.ie) | Fetch + Cheerio | Daily 2 AM UTC (Vercel Cron) |
+| HealthcareJobs.ie | Fetch + Cheerio | Daily 2 AM UTC (Vercel Cron) |
+| Rezoomo | Playwright | Daily 3 AM UTC (GitHub Actions) |
+| DoctorJobs.ie | Playwright | Daily 3 AM UTC (GitHub Actions) |
+
+**Key capabilities:**
+- Intelligent NCHD filtering (excludes consultant, nursing, and non-medical roles)
+- Hospital matching via fuzzy search against 50+ Irish hospitals
+- Automatic specialty and grade parsing from job titles
+- Deduplication by normalised title + hospital + deadline
+- Rate-limited requests (2-3s delays) to avoid blocking
+- Stale job deactivation when postings disappear from source
+- Batch upsert to Supabase (50 jobs per batch)
+- Full logging of every scraper run
+
+**Filtering & Search:**
+
+![Filters Panel](docs/screenshots/filters-panel.png)
+
+- Filter by **specialty** (20+ medical specialties)
+- Filter by **hospital group** (IEHG, DMHG, RCSI, Saolta, SSWHG, MWHG, UL)
+- Filter by **individual hospital** (50+ hospitals)
+- Filter by **county**
+- Filter by **scheme type** (BST, HST, Non-Training, Stand-alone)
+- Free-text search across job title, hospital name, county, and clinical lead
+
+---
+
+### 2. Match Probability Engine
+
+Enter your HSE exam centile and instantly see your match likelihood for every position. Each job is colour-coded based on the hospital's historical competitiveness.
+
+![Match Probability](docs/screenshots/match-probability.png)
+
+**Hospital tiers:**
+
+| Tier | Centile Required | Examples |
+|------|-----------------|----------|
+| Top Tier | >70th | Mater, St Vincent's, Beaumont, Cork UH, Galway UH |
+| Mid Tier | 40th-70th | Tallaght, Connolly, Sligo, Waterford |
+| Safety Net | <40th | Letterkenny, Portiuncula, Mullingar |
+
+**Match ratings:**
+- **Likely Match** (green) - Your centile is above the typical cutoff
+- **Competitive** (amber) - You're within the competitive range
+- **Reach** (red) - Your centile is below the typical cutoff
+
+Each rating includes a personalised strategic insight to help with application decisions.
+
+---
+
+### 3. Informal Enquiry Automation
+
+Every job listing extracts and displays informal enquiry contact details. One click to email or call the clinical lead before applying.
+
+![Job Detail View](docs/screenshots/job-detail.png)
+
+**Contact extraction includes:**
+- Informal enquiry email and name
+- Clinical lead name
+- Medical manpower / HR email
+- Application URL and job spec PDF link
+
+**Detail view features:**
+- Full job specifications
+- Application deadline with countdown timer (colour-coded urgency)
+- Application status tracking (Not Applied / Applied / Interview / Shortlisted / Accepted / Rejected)
+- Favourite/bookmark jobs
+- Match probability badge with strategic advice
+- One-click email with pre-filled enquiry template
+- Copy email button
+
+---
+
+### 4. Accommodation Exchange
+
+A peer-to-peer marketplace where interns can list and find accommodation near their rotation hospitals. Medical interns rotate every 6 months and need housing - this feature connects outgoing interns with incoming ones.
+
+![Accommodation Section](docs/screenshots/accommodation-section.png)
+
+**Listing features:**
+- Room types: Entire Place, Private Room, Shared Room
+- Rent per month with bills-included indicator
+- Deposit amount
+- Address, Eircode, and map location (OpenStreetMap embed)
+- Linked to specific hospital for location context
+- Availability dates (from/to) and minimum lease period
+- Up to 6 photos with client-side compression (max 1200px, JPEG)
+- Amenities: furnished, parking, WiFi, washer, dryer, dishwasher, garden, balcony, ensuite
+
+**Browsing & filtering:**
+
+![Accommodation Filters](docs/screenshots/accommodation-filters.png)
+
+- Filter by county, room type, and max rent
+- Search by hospital name, location, or description
+- Photo thumbnail previews in listing cards
+
+**Creating a listing:**
+
+![Create Listing](docs/screenshots/create-listing.png)
+
+- Full form with county/hospital dropdowns (auto-filtered from 50+ hospitals)
+- Drag-and-drop photo upload with live previews
+- Client-side image compression before upload
+- Contact email pre-filled from user profile
+- Validation for all required fields
+
+**Enquiry system:**
+
+![Accommodation Detail](docs/screenshots/accommodation-detail.png)
+
+- Send enquiries directly to listing owners
+- Email owner button with one-click mailto
+- Copy email and call buttons
+- Photo gallery with carousel navigation
+- Posted-by attribution with date
+
+---
+
+### 5. Authentication & User Profiles
+
+Secure authentication via Supabase Auth with email-based sign-up and role-based access control.
+
+![Login Screen](docs/screenshots/login.png)
+
+- Email + password sign-up/sign-in
+- Magic link (passwordless) authentication
+- Password reset via email
+- Automatic user profile creation on sign-up
+- Role-based access: `user` and `admin`
+- Session persistence across browser refreshes
+- PKCE OAuth flow for security
+- Fallback localStorage mode for development without Supabase
+
+---
+
+### 6. Admin Panel
+
+Protected admin area for managing scrapers and users.
+
+![Admin Panel](docs/screenshots/admin-panel.png)
+
+**Scraper management (`/admin`):**
+- Manually trigger individual or all scrapers
+- View results: jobs found, new jobs, duplicates removed, duration
+- See warnings and errors from each run
+- View scraping logs history
+
+**User management (`/admin/users`):**
+
+![User Management](docs/screenshots/user-management.png)
+
+- View all registered users
+- Promote/demote admin roles
+- Delete users (cascades all related data)
+- User statistics dashboard
+
+---
+
+## Tech Stack
+
+| Category | Technology |
+|----------|-----------|
+| **Framework** | [Next.js 16](https://nextjs.org/) (App Router) |
+| **Language** | TypeScript 5 |
+| **UI** | React 19 |
+| **Styling** | Tailwind CSS 4 |
+| **Animations** | Framer Motion 12 |
+| **Icons** | Lucide React |
+| **Database** | [Supabase](https://supabase.com/) (PostgreSQL + Auth + Storage) |
+| **State** | Zustand 5 + React Context |
+| **Scraping** | Cheerio 1.2 (fetch-based) + Playwright 1.58 (browser-based) |
+| **Date Handling** | date-fns 4 |
+| **Hosting** | Vercel |
+| **CI/CD** | GitHub Actions (Playwright scrapers) |
+
+---
+
+## Architecture
+
+```
+                                  +------------------+
+                                  |   Vercel Cron    |
+                                  |  (Daily 2 AM)   |
+                                  +--------+---------+
+                                           |
+                              POST /api/scrape (fetch scrapers)
+                                           |
++------------------+              +--------v---------+              +------------------+
+| GitHub Actions   |              |    Next.js App   |              |    Supabase      |
+| (Daily 3 AM)     +------------->|                  +------------->|                  |
+| Playwright       |  run script  |  - Dashboard     |   Supabase   |  - PostgreSQL    |
+| Scrapers         |              |  - Admin Panel   |   Client     |  - Auth          |
++------------------+              |  - API Routes    |              |  - Storage       |
+                                  |  - Accommodation |              |  - RLS Policies  |
+                                  +--------+---------+              +------------------+
+                                           |
+                                    Vercel Deploy
+                                           |
+                                  +--------v---------+
+                                  |    Users         |
+                                  |  (NCHD Doctors)  |
+                                  +------------------+
+```
+
+**Dual scraping strategy:**
+- **Vercel Cron** handles fetch-based scrapers (HSE, HealthcareJobs) that don't need a browser
+- **GitHub Actions** handles Playwright scrapers (Rezoomo, DoctorJobs) that require browser rendering
+- GitHub Actions runs 1 hour after Vercel Cron to avoid overlap
+
+---
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js 20+
+- npm 9+
+- A [Supabase](https://supabase.com/) project (free tier works)
+
+### Installation
+
+```bash
+# Clone the repository
+git clone https://github.com/Chrisfaherty/MEDJOB.git
+cd MEDJOB
+
+# Install dependencies
+npm install
+
+# Copy environment template and add your Supabase credentials
+cp .env.example .env.local
+
+# Start development server
+npm run dev
+```
+
+The app will be running at `http://localhost:3000`.
+
+---
+
+## Environment Variables
+
+Create a `.env.local` file in the project root:
+
+```env
+# Supabase (required)
+# Get these from: https://app.supabase.com/project/_/settings/api
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+
+# Site URL
+NEXT_PUBLIC_SITE_URL=http://localhost:3000
+
+# Admin emails (comma-separated) - auto-assigned admin role on sign-up
+NEXT_PUBLIC_ADMIN_EMAILS=your-email@example.com
+
+# Optional: force localStorage mode for testing without Supabase
+NEXT_PUBLIC_USE_LOCAL_STORAGE_FALLBACK=false
+```
+
+For GitHub Actions (Playwright scrapers), add these as **repository secrets**:
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
+
+---
+
+## Database Setup
+
+Run these migrations in order via the **Supabase SQL Editor** (Dashboard > SQL Editor > New Query):
+
+### 1. Initial Schema
+
+Run the contents of [`supabase/migrations/20260208_initial_schema.sql`](supabase/migrations/20260208_initial_schema.sql)
+
+This creates:
+- `jobs` table (NCHD postings)
+- `user_profiles` table (user metadata + roles)
+- `user_applications` table (application tracking)
+- `user_favorites` table (bookmarked jobs)
+- `user_preferences` table (saved filters)
+- `scraping_logs` table (scraper run history)
+- All RLS policies, indexes, and triggers
+
+### 2. Accommodation Schema
+
+Run the contents of [`supabase/migrations/20260210_accommodation.sql`](supabase/migrations/20260210_accommodation.sql)
+
+This creates:
+- `accommodation_listings` table
+- `accommodation_inquiries` table
+- RLS policies for listings and inquiries
+
+### 3. Accommodation Fixes
+
+Run the contents of [`supabase/migrations/20260210_accommodation_fix.sql`](supabase/migrations/20260210_accommodation_fix.sql)
+
+This fixes:
+- FK relationships for PostgREST joins (poster name display)
+- Owner visibility for inactive listings
+
+### 4. Storage Bucket
+
+In the Supabase Dashboard:
+1. Go to **Storage** > **New Bucket**
+2. Name: `accommodation-photos`
+3. Public bucket: **Yes**
+4. File size limit: **5MB**
+5. Allowed MIME types: `image/jpeg, image/png, image/webp`
+
+Then add storage policies:
+- **SELECT** (public read): Policy expression `true`
+- **INSERT** (authenticated write): Policy expression `auth.role() = 'authenticated'`
+- **DELETE** (owner only): Policy expression `auth.uid() = owner`
+
+---
+
+## Deployment
+
+### Vercel (Frontend + Fetch Scrapers)
+
+1. Connect your GitHub repository to [Vercel](https://vercel.com/)
+2. Set environment variables in Vercel project settings
+3. Deploy — Vercel auto-detects Next.js
+4. The cron job (`vercel.json`) will auto-scrape fetch-based sources daily at 2 AM UTC
+
+### GitHub Actions (Playwright Scrapers)
+
+1. Add repository secrets (see [Environment Variables](#environment-variables))
+2. The workflow at `.github/workflows/scrape.yml` runs daily at 3 AM UTC
+3. Can also be triggered manually from the Actions tab
+
+---
+
+## Scraper Configuration
+
+### Adding a New Scraper
+
+1. Create a new file in `src/lib/scrapers/`
+2. Extend `BaseScraper` (for fetch-based) or `PlaywrightBaseScraper` (for browser-based)
+3. Implement the `scrape()` method
+4. Register in `src/lib/scrapers/orchestrator.ts`
+
+### Hospital Matching
+
+The scraper uses fuzzy matching against `src/data/hospitals.json` which contains 50+ Irish hospitals with:
+- Hospital ID, name, short name
+- County and hospital group
+- Intern training network
+- Geo-coordinates
+
+---
+
+## Project Structure
+
+```
+medjob/
+├── .github/
+│   └── workflows/
+│       └── scrape.yml              # GitHub Actions: Playwright scrapers
+├── docs/
+│   └── screenshots/                # README screenshots
+├── scripts/
+│   └── run-playwright-scrapers.ts  # Playwright scraper entry point
+├── src/
+│   ├── app/
+│   │   ├── page.tsx                # Main dashboard (Jobs + Accommodation tabs)
+│   │   ├── layout.tsx              # Root layout with AuthProvider
+│   │   ├── globals.css             # Global styles + Apple HIG design tokens
+│   │   ├── admin/
+│   │   │   ├── page.tsx            # Scraper admin panel
+│   │   │   └── users/
+│   │   │       └── page.tsx        # User management
+│   │   ├── api/
+│   │   │   └── scrape/
+│   │   │       └── route.ts        # Scraper API endpoint
+│   │   └── auth/
+│   │       ├── callback/
+│   │       │   └── page.tsx        # OAuth PKCE callback handler
+│   │       └── reset-password/
+│   │           └── page.tsx        # Password reset form
+│   ├── components/
+│   │   ├── JobCard.tsx             # Job listing card with match badges
+│   │   ├── DetailView.tsx          # Job detail right pane
+│   │   ├── LoginModal.tsx          # Authentication modal
+│   │   ├── ScraperAdmin.tsx        # Admin scraper trigger UI
+│   │   └── accommodation/
+│   │       ├── AccommodationSection.tsx   # Main two-pane layout
+│   │       ├── AccommodationCard.tsx      # Listing card
+│   │       ├── AccommodationDetail.tsx    # Detail view with photos + map
+│   │       └── CreateListingModal.tsx     # Create listing form + photo upload
+│   ├── contexts/
+│   │   └── AuthContext.tsx          # Global auth state provider
+│   ├── data/
+│   │   └── hospitals.json          # 50+ Irish hospital reference data
+│   ├── lib/
+│   │   ├── auth.ts                 # Supabase auth service
+│   │   ├── supabase.ts             # Database API layer (Jobs, Accommodation, etc.)
+│   │   ├── localStorage.ts         # Fallback storage API
+│   │   ├── matchProbability.ts     # Match rating engine
+│   │   ├── emailTemplates.ts       # Contact email utilities
+│   │   ├── deadlineNotifications.ts # Deadline urgency system
+│   │   ├── pdfParser.ts            # Job spec PDF parser
+│   │   └── scrapers/
+│   │       ├── base.ts             # Base scraper class
+│   │       ├── playwright-base.ts  # Playwright base class
+│   │       ├── orchestrator.ts     # Scraper coordinator
+│   │       ├── hospital-matcher.ts # Fuzzy hospital matching
+│   │       ├── hse-scraper.ts      # HSE job scraper
+│   │       ├── healthcarejobs-scraper.ts
+│   │       ├── rezoomo-scraper.ts  # Playwright-based
+│   │       └── doctorjobs-scraper.ts # Playwright-based
+│   └── types/
+│       └── database.types.ts       # TypeScript type definitions
+├── supabase/
+│   └── migrations/
+│       ├── 20260208_initial_schema.sql     # Core tables + RLS
+│       ├── 20260210_accommodation.sql      # Accommodation tables
+│       └── 20260210_accommodation_fix.sql  # FK + RLS fixes
+├── vercel.json                     # Vercel cron configuration
+├── package.json
+└── tsconfig.json
+```
+
+---
+
+## Database Schema
+
+```
+┌──────────────────────┐     ┌──────────────────────┐
+│       jobs           │     │    user_profiles      │
+├──────────────────────┤     ├──────────────────────┤
+│ id (PK)              │     │ id (PK, FK->auth)    │
+│ title                │     │ email                │
+│ grade                │     │ name                 │
+│ specialty            │     │ role (user/admin)    │
+│ hospital_name        │     │ centile              │
+│ county               │     └──────────┬───────────┘
+│ application_deadline │                │
+│ source               │     ┌──────────┴───────────┐
+│ is_active            │     │  user_applications   │
+└──────────┬───────────┘     ├──────────────────────┤
+           │                 │ job_id (FK->jobs)    │
+           │                 │ user_id (FK->profiles)│
+           │                 │ status               │
+           │                 └──────────────────────┘
+           │
+┌──────────┴───────────┐     ┌──────────────────────────┐
+│   user_favorites     │     │ accommodation_listings   │
+├──────────────────────┤     ├──────────────────────────┤
+│ user_id (FK)         │     │ id (PK)                  │
+│ job_id (FK)          │     │ user_id (FK->profiles)   │
+└──────────────────────┘     │ title, rent, county      │
+                             │ hospital_id, hospital_name│
+┌──────────────────────┐     │ photo_urls[], amenities[]│
+│   scraping_logs      │     │ available_from/to        │
+├──────────────────────┤     └──────────┬───────────────┘
+│ source               │                │
+│ status               │     ┌──────────┴───────────────┐
+│ jobs_found           │     │ accommodation_inquiries  │
+│ jobs_new             │     ├──────────────────────────┤
+│ duration_seconds     │     │ listing_id (FK)          │
+└──────────────────────┘     │ sender_id (FK->profiles) │
+                             │ message                  │
+                             └──────────────────────────┘
+```
+
+---
+
+## Adding Screenshots
+
+To add screenshots to this README:
+
+1. Run the app locally with `npm run dev`
+2. Take screenshots of each feature
+3. Save them to `docs/screenshots/` with these filenames:
+
+| Filename | What to capture |
+|----------|----------------|
+| `dashboard-overview.png` | Full dashboard with job listings and header |
+| `job-listings.png` | Left sidebar showing job cards |
+| `filters-panel.png` | Expanded filter panel with specialties/counties |
+| `match-probability.png` | Centile input with match badges on job cards |
+| `job-detail.png` | Right pane showing full job details |
+| `accommodation-section.png` | Accommodation tab with listings |
+| `accommodation-filters.png` | Accommodation filter panel expanded |
+| `create-listing.png` | Create listing modal form |
+| `accommodation-detail.png` | Accommodation detail with photos and map |
+| `login.png` | Login/signup modal |
+| `admin-panel.png` | Admin scraper control panel |
+| `user-management.png` | Admin user management page |
+
+---
+
+## Contributing
+
+Contributions welcome, especially:
+- Hospital data corrections
+- New scraper sources
+- UI/UX improvements
+- Bug fixes
+
+---
+
+## License
+
+Private project. All rights reserved.
+
+---
+
+Built for Irish NCHD doctors by [Chris Faherty](https://github.com/Chrisfaherty).

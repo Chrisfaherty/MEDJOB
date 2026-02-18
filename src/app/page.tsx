@@ -5,6 +5,7 @@ import {
   Search,
   SlidersHorizontal,
   TrendingUp,
+  Stethoscope,
   Briefcase,
   Home,
   LogOut,
@@ -15,6 +16,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import JobCard from '@/components/JobCard';
 import DetailView from '@/components/DetailView';
 import LoginModal from '@/components/LoginModal';
+import LandingPage from '@/components/LandingPage';
 import AccommodationSection from '@/components/accommodation/AccommodationSection';
 import type { Job, SpecialtyType, HospitalGroup, SchemeType } from '@/types/database.types';
 import {
@@ -57,15 +59,11 @@ export default function Dashboard() {
   });
 
   useEffect(() => {
-    initializeLocalStorage();
-    loadData();
-  }, []);
-
-  useEffect(() => {
-    if (!authLoading && !user) {
-      setShowLoginModal(true);
+    if (user) {
+      initializeLocalStorage();
+      loadData();
     }
-  }, [authLoading, user]);
+  }, [user]);
 
   const loadData = async () => {
     try {
@@ -161,7 +159,15 @@ export default function Dashboard() {
   }
 
   if (!user) {
-    return <LoginModal isOpen={showLoginModal} onClose={() => setShowLoginModal(false)} />;
+    return (
+      <>
+        <LandingPage
+          onGetStarted={() => setShowLoginModal(true)}
+          onSignIn={() => setShowLoginModal(true)}
+        />
+        <LoginModal isOpen={showLoginModal} onClose={() => setShowLoginModal(false)} />
+      </>
+    );
   }
 
   return (
@@ -172,7 +178,7 @@ export default function Dashboard() {
           {/* Left: Logo */}
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 bg-teal rounded-xl flex items-center justify-center">
-              <Briefcase className="w-4 h-4 text-white" />
+              <Stethoscope className="w-4 h-4 text-white" />
             </div>
             <div>
               <h1 className="text-[15px] font-bold text-apple-black leading-none tracking-tight">MedMatch-IE</h1>
