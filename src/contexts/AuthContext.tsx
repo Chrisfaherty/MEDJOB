@@ -73,11 +73,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const loadUserProfile = async () => {
+    // Try loading from user_profiles table first
     try {
       const profile = await authService.getCurrentUserProfile();
-      setUser(profile);
+      if (profile) {
+        setUser(profile);
+        setLoading(false);
+        return;
+      }
     } catch (error) {
       console.error('Error loading user profile:', error);
+    }
+
+    // Fallback: build user from Supabase auth data directly
+    // (handles missing user_profiles table, RLS issues, etc.)
+    try {
+      const authUser = await authService.getCurrentUser();
+      if (authUser) {
+        const adminEmails = (process.env.NEXT_PUBLIC_ADMIN_EMAILS || '')
+          .split(',').map(e => e.trim().toLowerCase());
+        setUser({
+          id: authUser.id,
+          email: authUser.email || '',
+          name: authUser.user_metadata?.name || authUser.email?.split('@')[0] || 'User',
+          role: adminEmails.includes((authUser.email || '').toLowerCase()) ? 'admin' : 'user',
+          createdAt: authUser.created_at,
+        });
+      } else {
+        setUser(null);
+      }
+    } catch {
       setUser(null);
     } finally {
       setLoading(false);
