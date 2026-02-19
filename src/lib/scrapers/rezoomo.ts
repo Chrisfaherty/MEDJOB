@@ -23,7 +23,7 @@ const REZOOMO_SOURCES = [
   {
     name: 'CHI',
     url: 'https://www.rezoomo.com/company/childrens-health-ireland/jobs/',
-    hospitalId: 'chi',
+    hospitalId: 'stjames',
   },
   {
     name: 'Mater Hospital',
@@ -38,7 +38,7 @@ const REZOOMO_SOURCES = [
   {
     name: 'HSE Mid West',
     url: 'https://www.rezoomo.com/company/hse-mid-west/jobs/',
-    hospitalId: 'ulh',
+    hospitalId: 'uhl',
   },
   {
     name: 'HSE Dublin North East',
@@ -53,7 +53,7 @@ const REZOOMO_SOURCES = [
   {
     name: 'National Maternity Hospital',
     url: 'https://www.rezoomo.com/company/the-national-maternity-hospital/jobs/',
-    hospitalId: 'nmh',
+    hospitalId: 'stvincents',
   },
   {
     name: 'Ireland East',

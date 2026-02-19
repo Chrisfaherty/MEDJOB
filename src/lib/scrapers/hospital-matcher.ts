@@ -43,7 +43,8 @@ const HOSPITAL_ALIASES: Record<string, string> = {
   // Leinster
   'st lukes kilkenny': 'stlukeskilkenny',
   "st. luke's kilkenny": 'stlukeskilkenny',
-  'st luke': 'stlukeskilkenny',
+  "st luke's general": 'stlukeskilkenny',
+  'st lukes general': 'stlukeskilkenny',
   'wexford': 'wexford',
   'naas': 'naas',
   'portlaoise': 'portlaoise',
@@ -98,8 +99,13 @@ const HOSPITAL_ALIASES: Record<string, string> = {
   'temple street': 'mater',
   'rotunda': 'mater',
   'holles street': 'stvincents',
+  'nmh': 'stvincents',
+  'national maternity': 'stvincents',
   'coombe': 'stjames',
   'crumlin': 'stjames',
+  'chi': 'stjames',
+  "children's health ireland": 'stjames',
+  'childrens health ireland': 'stjames',
 };
 
 /**
@@ -136,6 +142,12 @@ const REF_CODE_PREFIX_TO_COUNTY: Record<string, string> = {
   'sw': 'Cork',
   'ne': 'Louth',      // North East
   'nw': 'Sligo',      // North West
+  'li': 'Limerick',   // Limerick alternate
+  'mh': 'Dublin',     // Meath (nearest teaching hospital is Dublin)
+  'of': 'Laois',      // Offaly (nearest is Portlaoise)
+  'lg': 'Westmeath',  // Longford (nearest is Mullingar)
+  'mn': 'Cavan',      // Monaghan (nearest is Cavan)
+  'le': 'Sligo',      // Leitrim (nearest is Sligo)
 };
 
 /**
