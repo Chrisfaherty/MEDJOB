@@ -155,30 +155,35 @@ export function inferCountyFromRefCode(text: string): string | null {
 
 /**
  * Match a hospital name/text to our canonical hospital database.
- * Tries multiple strategies: exact name, short name, aliases, county fallback.
+ * If the text contains a reference code (e.g. MW26MOB2), the ref code county
+ * takes priority — text-matched hospitals are only used if they're in the same county.
+ * Tries multiple strategies: exact name, short name, aliases.
  */
 export function matchHospital(text: string): MatchedHospital | null {
   if (!text) return null;
   const normalized = text.toLowerCase().trim();
 
+  // Check if text contains a reference code that indicates a specific county
+  const refCounty = inferCountyFromRefCode(text);
+
   // Strategy 1: Exact full name match
   for (const h of hospitals) {
     if (normalized === h.name.toLowerCase()) {
-      return toMatch(h);
+      if (!refCounty || h.county === refCounty) return toMatch(h);
     }
   }
 
   // Strategy 2: Full name contained in text
   for (const h of hospitals) {
     if (normalized.includes(h.name.toLowerCase())) {
-      return toMatch(h);
+      if (!refCounty || h.county === refCounty) return toMatch(h);
     }
   }
 
   // Strategy 3: Short name match
   for (const h of hospitals) {
     if (h.shortName && normalized.includes(h.shortName.toLowerCase())) {
-      return toMatch(h);
+      if (!refCounty || h.county === refCounty) return toMatch(h);
     }
   }
 
@@ -186,8 +191,13 @@ export function matchHospital(text: string): MatchedHospital | null {
   for (const [alias, hospitalId] of Object.entries(HOSPITAL_ALIASES)) {
     if (normalized.includes(alias)) {
       const h = hospitals.find(h => h.id === hospitalId);
-      if (h) return toMatch(h);
+      if (h && (!refCounty || h.county === refCounty)) return toMatch(h);
     }
+  }
+
+  // If ref code found a county but no hospital text matched it, return the primary hospital for that county
+  if (refCounty) {
+    return matchHospitalByCounty(refCounty);
   }
 
   return null;
@@ -215,17 +225,22 @@ export function matchHospitalByCounty(county: string): MatchedHospital | null {
 
 /**
  * Infer county from text (title, location field, etc.)
- * Checks: hospital name match → county name mention → reference code prefix → fallback.
+ * Priority: reference code prefix → hospital name match → county name mention → fallback.
+ * Reference codes (e.g. MW26MOB2 → Mid-West → Limerick) are the most reliable signal.
  */
 export function inferCounty(text: string): string {
   if (!text) return 'Dublin';
   const lower = text.toLowerCase();
 
-  // First try to match a hospital — its county is authoritative
+  // 1. Reference code prefix is most reliable (e.g. MW26ER3 → Limerick)
+  const refCounty = inferCountyFromRefCode(text);
+  if (refCounty) return refCounty;
+
+  // 2. Try to match a hospital name — its county is authoritative
   const hospital = matchHospital(text);
   if (hospital) return hospital.county;
 
-  // Direct county name mentions
+  // 3. Direct county name mentions
   const counties = [
     'Dublin', 'Cork', 'Galway', 'Limerick', 'Waterford', 'Kerry',
     'Sligo', 'Donegal', 'Mayo', 'Meath', 'Kilkenny', 'Tipperary',
@@ -238,10 +253,6 @@ export function inferCounty(text: string): string {
       return county;
     }
   }
-
-  // Try reference code prefix (e.g. MW26ER3 → Limerick)
-  const refCounty = inferCountyFromRefCode(text);
-  if (refCounty) return refCounty;
 
   return 'Dublin'; // Default fallback
 }
