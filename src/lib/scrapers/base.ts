@@ -82,8 +82,8 @@ export abstract class BaseScraper {
   protected parseSpecialty(title: string, description?: string): SpecialtyType {
     const text = `${title} ${description || ''}`.toLowerCase();
 
-    // Specific specialties first, generic 'medicine'/'surgery' last as fallbacks
-    const specialtyMap: [string, SpecialtyType][] = [
+    // Specific specialties checked first
+    const specificSpecialties: [string, SpecialtyType][] = [
       ['emergency medicine', 'EMERGENCY_MEDICINE'],
       ['a&e', 'EMERGENCY_MEDICINE'],
       ['anaesthesia', 'ANAESTHETICS'],
@@ -103,10 +103,26 @@ export abstract class BaseScraper {
       ['dermatology', 'DERMATOLOGY'],
       ['orthopaedic', 'ORTHOPAEDICS'],
       ['urology', 'UROLOGY'],
-      ['ent', 'ENT'],
+      ['otolaryngology', 'ENT'],
+      ['ear nose', 'ENT'],
       ['oncology', 'ONCOLOGY'],
       ['ophthalmology', 'OPHTHALMOLOGY'],
-      // Generic fallbacks — must be last
+    ];
+
+    for (const [keyword, specialty] of specificSpecialties) {
+      if (text.includes(keyword)) {
+        return specialty;
+      }
+    }
+
+    // Word-boundary check for 'ENT' — before generic fallbacks so
+    // "ENT Surgery" matches ENT, not GENERAL_SURGERY
+    if (/\bent\b/.test(text)) {
+      return 'ENT';
+    }
+
+    // Generic fallbacks
+    const genericFallbacks: [string, SpecialtyType][] = [
       ['general medicine', 'GENERAL_MEDICINE'],
       ['general surgery', 'GENERAL_SURGERY'],
       ['emergency', 'EMERGENCY_MEDICINE'],
@@ -114,7 +130,7 @@ export abstract class BaseScraper {
       ['surgery', 'GENERAL_SURGERY'],
     ];
 
-    for (const [keyword, specialty] of specialtyMap) {
+    for (const [keyword, specialty] of genericFallbacks) {
       if (text.includes(keyword)) {
         return specialty;
       }

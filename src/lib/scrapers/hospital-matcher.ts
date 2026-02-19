@@ -192,16 +192,23 @@ export function matchHospital(text: string): MatchedHospital | null {
     }
   }
 
-  // Strategy 3: Short name match
+  // Strategy 3: Short name match (word-boundary to prevent "Mater" matching inside "maternity")
   for (const h of hospitals) {
-    if (h.shortName && normalized.includes(h.shortName.toLowerCase())) {
-      if (!refCounty || h.county === refCounty) return toMatch(h);
+    if (h.shortName) {
+      const escaped = h.shortName.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      if (new RegExp(`\\b${escaped}\\b`).test(normalized)) {
+        if (!refCounty || h.county === refCounty) return toMatch(h);
+      }
     }
   }
 
-  // Strategy 4: Alias/abbreviation lookup
-  for (const [alias, hospitalId] of Object.entries(HOSPITAL_ALIASES)) {
-    if (normalized.includes(alias)) {
+  // Strategy 4: Alias/abbreviation lookup (sorted longest-first so
+  // "national maternity" matches before "mater" inside "maternity")
+  const sortedAliases = Object.entries(HOSPITAL_ALIASES)
+    .sort((a, b) => b[0].length - a[0].length);
+  for (const [alias, hospitalId] of sortedAliases) {
+    const escaped = alias.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    if (new RegExp(`\\b${escaped}\\b`).test(normalized)) {
       const h = hospitals.find(h => h.id === hospitalId);
       if (h && (!refCounty || h.county === refCounty)) return toMatch(h);
     }
