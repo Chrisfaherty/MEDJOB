@@ -82,37 +82,39 @@ export abstract class BaseScraper {
   protected parseSpecialty(title: string, description?: string): SpecialtyType {
     const text = `${title} ${description || ''}`.toLowerCase();
 
-    const specialtyMap: Record<string, SpecialtyType> = {
-      'general medicine': 'GENERAL_MEDICINE',
-      'medicine': 'GENERAL_MEDICINE',
-      'general surgery': 'GENERAL_SURGERY',
-      'surgery': 'GENERAL_SURGERY',
-      'emergency medicine': 'EMERGENCY_MEDICINE',
-      'emergency': 'EMERGENCY_MEDICINE',
-      'a&e': 'EMERGENCY_MEDICINE',
-      'anaesthesia': 'ANAESTHETICS',
-      'anaesthetic': 'ANAESTHETICS',
-      'paediatric': 'PAEDIATRICS',
-      'paediatrics': 'PAEDIATRICS',
-      'obstetrics': 'OBSTETRICS_GYNAECOLOGY',
-      'gynaecology': 'OBSTETRICS_GYNAECOLOGY',
-      'psychiatry': 'PSYCHIATRY',
-      'radiology': 'RADIOLOGY',
-      'pathology': 'PATHOLOGY',
-      'cardiology': 'CARDIOLOGY',
-      'respiratory': 'RESPIRATORY',
-      'gastroenterology': 'GASTROENTEROLOGY',
-      'endocrinology': 'ENDOCRINOLOGY',
-      'neurology': 'NEUROLOGY',
-      'dermatology': 'DERMATOLOGY',
-      'orthopaedic': 'ORTHOPAEDICS',
-      'urology': 'UROLOGY',
-      'ent': 'ENT',
-      'oncology': 'ONCOLOGY',
-      'ophthalmology': 'OPHTHALMOLOGY',
-    };
+    // Specific specialties first, generic 'medicine'/'surgery' last as fallbacks
+    const specialtyMap: [string, SpecialtyType][] = [
+      ['emergency medicine', 'EMERGENCY_MEDICINE'],
+      ['a&e', 'EMERGENCY_MEDICINE'],
+      ['anaesthesia', 'ANAESTHETICS'],
+      ['anaesthetic', 'ANAESTHETICS'],
+      ['paediatric', 'PAEDIATRICS'],
+      ['paediatrics', 'PAEDIATRICS'],
+      ['obstetrics', 'OBSTETRICS_GYNAECOLOGY'],
+      ['gynaecology', 'OBSTETRICS_GYNAECOLOGY'],
+      ['psychiatry', 'PSYCHIATRY'],
+      ['radiology', 'RADIOLOGY'],
+      ['pathology', 'PATHOLOGY'],
+      ['cardiology', 'CARDIOLOGY'],
+      ['respiratory', 'RESPIRATORY'],
+      ['gastroenterology', 'GASTROENTEROLOGY'],
+      ['endocrinology', 'ENDOCRINOLOGY'],
+      ['neurology', 'NEUROLOGY'],
+      ['dermatology', 'DERMATOLOGY'],
+      ['orthopaedic', 'ORTHOPAEDICS'],
+      ['urology', 'UROLOGY'],
+      ['ent', 'ENT'],
+      ['oncology', 'ONCOLOGY'],
+      ['ophthalmology', 'OPHTHALMOLOGY'],
+      // Generic fallbacks — must be last
+      ['general medicine', 'GENERAL_MEDICINE'],
+      ['general surgery', 'GENERAL_SURGERY'],
+      ['emergency', 'EMERGENCY_MEDICINE'],
+      ['medicine', 'GENERAL_MEDICINE'],
+      ['surgery', 'GENERAL_SURGERY'],
+    ];
 
-    for (const [keyword, specialty] of Object.entries(specialtyMap)) {
+    for (const [keyword, specialty] of specialtyMap) {
       if (text.includes(keyword)) {
         return specialty;
       }
