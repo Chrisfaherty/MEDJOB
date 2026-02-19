@@ -4,6 +4,7 @@
  */
 
 import ScraperAdmin from '@/components/ScraperAdmin';
+import DataQualityPanel from '@/components/DataQualityPanel';
 
 export default function AdminPage() {
   return (
@@ -19,6 +20,11 @@ export default function AdminPage() {
 
         {/* Scraper Admin Component */}
         <ScraperAdmin />
+
+        {/* Data Quality Monitor */}
+        <div className="mt-8">
+          <DataQualityPanel />
+        </div>
 
         {/* Quick Links */}
         <div className="mt-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
