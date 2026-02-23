@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:e2e": "npx tsx --tsconfig tsconfig.scripts.json scripts/test-e2e-agents.ts",
+    "test:e2e:cleanup": "npx tsx --tsconfig tsconfig.scripts.json scripts/test-e2e-agents.ts --cleanup"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.95.3",
