@@ -148,6 +148,8 @@ export interface User {
   name: string;
   role: 'admin' | 'user';
   createdAt: string;
+  centile?: number;
+  currentGrade?: string;
 }
 
 // Admin credentials (in production, this should be in environment variables)

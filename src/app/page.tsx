@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Search,
   SlidersHorizontal,
@@ -11,12 +11,17 @@ import {
   LogOut,
   ChevronLeft,
   X,
+  Bell,
+  ClipboardList,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import JobCard from '@/components/JobCard';
 import DetailView from '@/components/DetailView';
 import LoginModal from '@/components/LoginModal';
 import LandingPage from '@/components/LandingPage';
+import ProfileSetupModal from '@/components/ProfileSetupModal';
+import DeadlineNotifPanel from '@/components/DeadlineNotifPanel';
+import ApplicationTracker from '@/components/ApplicationTracker';
 import AccommodationSection from '@/components/accommodation/AccommodationSection';
 import type { Job, SpecialtyType, HospitalGroup, SchemeType } from '@/types/database.types';
 import {
@@ -26,11 +31,14 @@ import {
 } from '@/types/database.types';
 import { storageAPI, initializeLocalStorage } from '@/lib/localStorage';
 import { useAuth } from '@/contexts/AuthContext';
+import { getDeadlineStats, checkDeadlines, type DeadlineAlert } from '@/lib/deadlineNotifications';
 
 export default function Dashboard() {
-  const { user, loading: authLoading, signOut } = useAuth();
+  const { user, loading: authLoading, signOut, updateProfile } = useAuth();
   const [showLoginModal, setShowLoginModal] = useState(false);
-  const [activeSection, setActiveSection] = useState<'jobs' | 'accommodation'>('jobs');
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [skipProfileSetup, setSkipProfileSetup] = useState(false);
+  const [activeSection, setActiveSection] = useState<'jobs' | 'accommodation' | 'tracker'>('jobs');
 
   // Data state
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -42,6 +50,10 @@ export default function Dashboard() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [userCentile, setUserCentile] = useState<number | undefined>();
+  const [showNotifPanel, setShowNotifPanel] = useState(false);
+  const [urgentAlerts, setUrgentAlerts] = useState<DeadlineAlert[]>([]);
+  const [notifCount, setNotifCount] = useState(0);
+  const bellRef = useRef<HTMLDivElement>(null);
 
   // Filter state
   const [filters, setFilters] = useState<{
@@ -57,6 +69,17 @@ export default function Dashboard() {
     counties: [],
     schemeTypes: [],
   });
+
+  // Init centile from user profile when user loads
+  useEffect(() => {
+    if (user?.centile) {
+      setUserCentile(user.centile);
+    }
+    // Show profile setup modal if centile not set yet
+    if (user && !user.centile && !skipProfileSetup) {
+      setShowProfileModal(true);
+    }
+  }, [user?.id]);
 
   useEffect(() => {
     if (user) {
@@ -75,10 +98,21 @@ export default function Dashboard() {
       if (jobsData.length > 0) {
         setSelectedJob(jobsData[0]);
       }
+      // Compute deadline alerts
+      const alerts = checkDeadlines(jobsData);
+      const stats = getDeadlineStats(jobsData);
+      setUrgentAlerts(alerts);
+      setNotifCount(stats.critical + stats.warning);
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleCentileBlur = () => {
+    if (userCentile !== user?.centile) {
+      updateProfile({ centile: userCentile });
     }
   };
 
@@ -201,6 +235,17 @@ export default function Dashboard() {
                 <span className="hidden sm:inline">Jobs</span>
               </button>
               <button
+                onClick={() => setActiveSection('tracker')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-semibold rounded-lg transition-all duration-200 ${
+                  activeSection === 'tracker'
+                    ? 'bg-white text-apple-black shadow-sm'
+                    : 'text-apple-secondary hover:text-apple-black'
+                }`}
+              >
+                <ClipboardList className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Tracker</span>
+              </button>
+              <button
                 onClick={() => setActiveSection('accommodation')}
                 className={`flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-semibold rounded-lg transition-all duration-200 ${
                   activeSection === 'accommodation'
@@ -209,32 +254,60 @@ export default function Dashboard() {
                 }`}
               >
                 <Home className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Accommodation</span>
+                <span className="hidden sm:inline">Housing</span>
               </button>
             </div>
 
             {/* Centile Input — only show for jobs */}
             {activeSection === 'jobs' && (
-          <div className="hidden sm:flex items-center gap-2 bg-white/60 border border-slate-200/80 rounded-xl px-3 py-1.5 shadow-card">
-            <TrendingUp className="w-3.5 h-3.5 text-teal" />
-            <input
-              type="number"
-              min="0"
-              max="100"
-              placeholder="Your centile"
-              value={userCentile || ''}
-              onChange={(e) => setUserCentile(e.target.value ? parseInt(e.target.value) : undefined)}
-              className="w-24 text-[13px] bg-transparent border-none outline-none placeholder:text-slate-400 text-apple-black"
-            />
-            {userCentile && (
-              <span className="text-[11px] font-semibold text-teal">{userCentile}th</span>
-            )}
-          </div>
+              <div className="hidden sm:flex items-center gap-2 bg-white/60 border border-slate-200/80 rounded-xl px-3 py-1.5 shadow-card">
+                <TrendingUp className="w-3.5 h-3.5 text-teal" />
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  placeholder="Your centile"
+                  value={userCentile || ''}
+                  onChange={(e) => setUserCentile(e.target.value ? parseInt(e.target.value) : undefined)}
+                  onBlur={handleCentileBlur}
+                  className="w-24 text-[13px] bg-transparent border-none outline-none placeholder:text-slate-400 text-apple-black"
+                />
+                {userCentile && (
+                  <span className="text-[11px] font-semibold text-teal">{userCentile}th</span>
+                )}
+              </div>
             )}
           </div>
 
-          {/* Right: Avatar + Logout */}
+          {/* Right: Bell + Avatar + Logout */}
           <div className="flex items-center gap-2.5">
+            {/* Notification Bell */}
+            <div ref={bellRef} className="relative">
+              <button
+                onClick={() => setShowNotifPanel(!showNotifPanel)}
+                className="relative p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100/80 rounded-xl transition-colors"
+                title="Deadline alerts"
+              >
+                <Bell className="w-4 h-4" />
+                {notifCount > 0 && (
+                  <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center leading-none">
+                    {notifCount > 9 ? '9+' : notifCount}
+                  </span>
+                )}
+              </button>
+              {showNotifPanel && (
+                <DeadlineNotifPanel
+                  alerts={urgentAlerts}
+                  onClose={() => setShowNotifPanel(false)}
+                  onJobSelect={(job) => {
+                    setSelectedJob(job);
+                    setActiveSection('jobs');
+                    setShowNotifPanel(false);
+                  }}
+                />
+              )}
+            </div>
+
             <div className="hidden md:flex items-center gap-2">
               <div className="w-7 h-7 rounded-full bg-teal/10 flex items-center justify-center">
                 <span className="text-[10px] font-bold text-teal">{userInitials}</span>
@@ -283,6 +356,7 @@ export default function Dashboard() {
                 placeholder="Your centile"
                 value={userCentile || ''}
                 onChange={(e) => setUserCentile(e.target.value ? parseInt(e.target.value) : undefined)}
+                onBlur={handleCentileBlur}
                 className="w-full pl-9 pr-4 py-2.5 text-[13px] bg-apple-gray/60 border border-slate-200/60 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal/20 focus:border-teal/40 placeholder:text-slate-400 transition-all"
               />
             </div>
@@ -461,9 +535,25 @@ export default function Dashboard() {
           )}
         </main>
       </div>
+      ) : activeSection === 'tracker' ? (
+        <ApplicationTracker
+          jobs={jobs}
+          onJobSelect={(job) => {
+            setSelectedJob(job);
+            setActiveSection('jobs');
+          }}
+        />
       ) : (
         <AccommodationSection />
       )}
+
+      <ProfileSetupModal
+        isOpen={showProfileModal}
+        onClose={() => {
+          setShowProfileModal(false);
+          setSkipProfileSetup(true);
+        }}
+      />
     </div>
   );
 }

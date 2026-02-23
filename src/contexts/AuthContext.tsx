@@ -16,7 +16,7 @@ interface AuthContextType {
   signUp: (email: string, password: string, name: string) => Promise<void>;
   signOut: () => Promise<void>;
   signInWithMagicLink: (email: string) => Promise<void>;
-  updateProfile: (updates: { name?: string; centile?: number }) => Promise<void>;
+  updateProfile: (updates: { name?: string; centile?: number; current_grade?: string }) => Promise<void>;
   isAdmin: boolean;
 }
 
@@ -162,7 +162,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const updateProfile = async (updates: { name?: string; centile?: number }) => {
+  const updateProfile = async (updates: { name?: string; centile?: number; current_grade?: string }) => {
     if (useSupabase && !isDemoRef.current) {
       await authService.updateUserProfile(updates);
       await loadUserProfile();

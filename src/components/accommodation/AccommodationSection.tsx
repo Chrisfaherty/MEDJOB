@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Search, SlidersHorizontal, Home, Plus, ChevronLeft } from 'lucide-react';
+import { Search, SlidersHorizontal, Home, Plus, ChevronLeft, List } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import AccommodationCard from './AccommodationCard';
 import AccommodationDetail from './AccommodationDetail';
+import MyListingsInbox from './MyListingsInbox';
 import CreateListingModal, { type ListingFormData } from './CreateListingModal';
 import type { AccommodationListing, RoomType } from '@/types/database.types';
 import { ROOM_TYPE_LABELS } from '@/types/database.types';
@@ -17,9 +18,12 @@ const COUNTIES = Array.from(new Set(hospitals.map(h => h.county))).sort();
 
 export default function AccommodationSection() {
   const { user } = useAuth();
+  const [view, setView] = useState<'browse' | 'my-listings'>('browse');
   const [listings, setListings] = useState<AccommodationListing[]>([]);
+  const [myListings, setMyListings] = useState<AccommodationListing[]>([]);
   const [selectedListing, setSelectedListing] = useState<AccommodationListing | null>(null);
   const [loading, setLoading] = useState(true);
+  const [myListingsLoading, setMyListingsLoading] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
 
   // Search & filters
@@ -38,6 +42,27 @@ export default function AccommodationSection() {
   useEffect(() => {
     loadListings();
   }, []);
+
+  useEffect(() => {
+    if (view === 'my-listings' && user) {
+      loadMyListings();
+    }
+  }, [view, user]);
+
+  const loadMyListings = async () => {
+    try {
+      setMyListingsLoading(true);
+      const data = await supabaseAccommodationAPI.getUserListings();
+      setMyListings(data);
+      if (data.length > 0 && !selectedListing) {
+        setSelectedListing(data[0]);
+      }
+    } catch (error) {
+      console.error('Error loading my listings:', error);
+    } finally {
+      setMyListingsLoading(false);
+    }
+  };
 
   const loadListings = async () => {
     try {
@@ -135,7 +160,34 @@ export default function AccommodationSection() {
         <aside className={`w-full lg:w-[380px] lg:min-w-[380px] flex flex-col border-r border-slate-200/60 bg-white/50 ${
           selectedListing ? 'hidden lg:flex' : 'flex'
         }`}>
+          {/* View Tabs */}
+          <div className="flex items-center gap-1 p-2 border-b border-slate-100/80 bg-white/80">
+            <button
+              onClick={() => { setView('browse'); setSelectedListing(null); }}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 text-[12px] font-semibold rounded-lg transition-all ${
+                view === 'browse'
+                  ? 'bg-teal text-white shadow-sm'
+                  : 'text-apple-secondary hover:text-apple-black hover:bg-slate-100'
+              }`}
+            >
+              <Home className="w-3.5 h-3.5" />
+              Browse
+            </button>
+            <button
+              onClick={() => { setView('my-listings'); setSelectedListing(null); }}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 text-[12px] font-semibold rounded-lg transition-all ${
+                view === 'my-listings'
+                  ? 'bg-teal text-white shadow-sm'
+                  : 'text-apple-secondary hover:text-apple-black hover:bg-slate-100'
+              }`}
+            >
+              <List className="w-3.5 h-3.5" />
+              My Listings
+            </button>
+          </div>
+
           {/* Search & Filter Bar */}
+          {view === 'browse' && (
           <div className="p-3 space-y-2 border-b border-slate-100/80">
             {/* Search */}
             <div className="relative">
@@ -247,23 +299,57 @@ export default function AccommodationSection() {
               )}
             </AnimatePresence>
           </div>
+          )}
 
           {/* Listings List */}
           <div className="flex-1 overflow-y-auto custom-scrollbar">
-            {loading ? (
-              <div className="flex items-center justify-center py-20">
-                <div className="animate-spin rounded-full h-7 w-7 border-2 border-slate-200 border-t-teal"></div>
-              </div>
-            ) : filteredListings.length === 0 ? (
-              <div className="px-6 py-20 text-center">
-                <Home className="w-10 h-10 text-slate-200 mx-auto mb-3" />
-                <p className="text-sm font-medium text-slate-500">
-                  {listings.length === 0 ? 'No accommodation listed yet' : 'No listings match your criteria'}
-                </p>
-                <p className="text-[11px] text-apple-secondary mt-1">
-                  {listings.length === 0 ? 'Be the first to list your place!' : 'Try adjusting your filters'}
-                </p>
-                {listings.length === 0 && (
+            {view === 'browse' ? (
+              loading ? (
+                <div className="flex items-center justify-center py-20">
+                  <div className="animate-spin rounded-full h-7 w-7 border-2 border-slate-200 border-t-teal"></div>
+                </div>
+              ) : filteredListings.length === 0 ? (
+                <div className="px-6 py-20 text-center">
+                  <Home className="w-10 h-10 text-slate-200 mx-auto mb-3" />
+                  <p className="text-sm font-medium text-slate-500">
+                    {listings.length === 0 ? 'No accommodation listed yet' : 'No listings match your criteria'}
+                  </p>
+                  <p className="text-[11px] text-apple-secondary mt-1">
+                    {listings.length === 0 ? 'Be the first to list your place!' : 'Try adjusting your filters'}
+                  </p>
+                  {listings.length === 0 && (
+                    <button
+                      onClick={() => setShowCreateModal(true)}
+                      className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 text-[13px] font-semibold bg-teal text-white rounded-xl hover:bg-teal-700 transition-colors"
+                    >
+                      <Plus className="w-4 h-4" />
+                      List Your Place
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div className="divide-y divide-slate-100/80">
+                  {filteredListings.map((listing, index) => (
+                    <AccommodationCard
+                      key={listing.id}
+                      listing={listing}
+                      isSelected={selectedListing?.id === listing.id}
+                      onCardClick={setSelectedListing}
+                      index={index}
+                    />
+                  ))}
+                </div>
+              )
+            ) : (
+              myListingsLoading ? (
+                <div className="flex items-center justify-center py-20">
+                  <div className="animate-spin rounded-full h-7 w-7 border-2 border-slate-200 border-t-teal"></div>
+                </div>
+              ) : myListings.length === 0 ? (
+                <div className="px-6 py-20 text-center">
+                  <Home className="w-10 h-10 text-slate-200 mx-auto mb-3" />
+                  <p className="text-sm font-medium text-slate-500">No listings yet</p>
+                  <p className="text-[11px] text-apple-secondary mt-1">Create a listing to see it here</p>
                   <button
                     onClick={() => setShowCreateModal(true)}
                     className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 text-[13px] font-semibold bg-teal text-white rounded-xl hover:bg-teal-700 transition-colors"
@@ -271,20 +357,20 @@ export default function AccommodationSection() {
                     <Plus className="w-4 h-4" />
                     List Your Place
                   </button>
-                )}
-              </div>
-            ) : (
-              <div className="divide-y divide-slate-100/80">
-                {filteredListings.map((listing, index) => (
-                  <AccommodationCard
-                    key={listing.id}
-                    listing={listing}
-                    isSelected={selectedListing?.id === listing.id}
-                    onCardClick={setSelectedListing}
-                    index={index}
-                  />
-                ))}
-              </div>
+                </div>
+              ) : (
+                <div className="divide-y divide-slate-100/80">
+                  {myListings.map((listing, index) => (
+                    <AccommodationCard
+                      key={listing.id}
+                      listing={listing}
+                      isSelected={selectedListing?.id === listing.id}
+                      onCardClick={setSelectedListing}
+                      index={index}
+                    />
+                  ))}
+                </div>
+              )
             )}
           </div>
         </aside>
@@ -304,10 +390,17 @@ export default function AccommodationSection() {
                 Back to Listings
               </button>
 
-              <AccommodationDetail
-                listing={selectedListing}
-                onSendInquiry={handleSendInquiry}
-              />
+              {view === 'my-listings' ? (
+                <MyListingsInbox
+                  listing={selectedListing}
+                  onDeactivated={() => { setSelectedListing(null); loadMyListings(); }}
+                />
+              ) : (
+                <AccommodationDetail
+                  listing={selectedListing}
+                  onSendInquiry={handleSendInquiry}
+                />
+              )}
             </>
           ) : (
             <div className="flex-1 flex items-center justify-center">

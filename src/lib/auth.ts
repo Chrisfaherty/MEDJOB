@@ -138,6 +138,8 @@ export const authService = {
       name: profile.name,
       role: profile.role as 'admin' | 'user',
       createdAt: profile.created_at,
+      centile: profile.centile ?? undefined,
+      currentGrade: profile.current_grade ?? undefined,
     };
   },
 
